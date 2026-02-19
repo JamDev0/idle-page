@@ -340,13 +340,13 @@ while true; do
     PAD_LEFT=$(( (BOX_WIDTH - 2 - TEXT_LEN) / 2 ))
     PAD_RIGHT=$(( BOX_WIDTH - 2 - TEXT_LEN - PAD_LEFT ))
     echo "┌─────────────────────────────────────────┐"
-    printf "│%*s%s%*s│\n" "$PAD_LEFT" "" "$LOOP_TEXT" "$PAD_RIGHT" ""
+    printf "│%*s%s%*s  │\n" "$PAD_LEFT" "" "$LOOP_TEXT" "$PAD_RIGHT" ""
     echo "└─────────────────────────────────────────┘"
 
     # Run agent with selected prompt and verbosity filter
     # -p: Headless mode (non-interactive, reads from stdin)
     # --force: Auto-approve all tool calls (YOLO mode)
-    # --model composer-1: Cursor's primary agent
+    # --model Auto: Cursor's primary agent
     START_TIME=$(date +%s)
     SESSION_ID=""
     
@@ -356,18 +356,20 @@ while true; do
         TEMP_OUTPUT=$(mktemp)
     fi
     
+    CURSOR_MODEL="Auto"
+
     case $VERBOSITY in
         0)
             # Verbose: show full details including assistant messages
             if [ -n "$LOG_FILE" ]; then
                 cat "$PROMPT_FILE" | $AGENT_CMD -p \
                     --force \
-                    --model composer-1 \
+                    --model $CURSOR_MODEL \
                     --output-format=stream-json 2>&1 | tee -a "$LOG_FILE" | filter_verbose
             else
                 cat "$PROMPT_FILE" | $AGENT_CMD -p \
                     --force \
-                    --model composer-1 \
+                    --model $CURSOR_MODEL \
                     --output-format=stream-json 2>&1 | filter_verbose
             fi
             ;;
@@ -376,12 +378,12 @@ while true; do
             if [ -n "$LOG_FILE" ]; then
                 cat "$PROMPT_FILE" | $AGENT_CMD -p \
                     --force \
-                    --model composer-1 \
+                    --model $CURSOR_MODEL \
                     --output-format=stream-json 2>&1 | tee -a "$LOG_FILE" | filter_summary
             else
                 cat "$PROMPT_FILE" | $AGENT_CMD -p \
                     --force \
-                    --model composer-1 \
+                    --model $CURSOR_MODEL \
                     --output-format=stream-json 2>&1 | filter_summary
             fi
             ;;
@@ -389,7 +391,7 @@ while true; do
             # Minimal: filter to show only tool names
             cat "$PROMPT_FILE" | $AGENT_CMD -p \
                 --force \
-                --model composer-1 \
+                --model $CURSOR_MODEL \
                 --output-format=stream-json 2>&1 | \
                 ( [ -n "$LOG_FILE" ] && tee -a "$LOG_FILE" || cat ) | \
                 filter_minimal
@@ -402,7 +404,7 @@ while true; do
             echo "  Running agent..."
             cat "$PROMPT_FILE" | $AGENT_CMD -p \
                 --force \
-                --model composer-1 \
+                --model $CURSOR_MODEL \
                 --output-format=stream-json 2>&1 | \
                 ( [ -n "$LOG_FILE" ] && tee -a "$LOG_FILE" || cat ) | \
                 filter_quiet
