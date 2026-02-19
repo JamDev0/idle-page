@@ -1,6 +1,8 @@
+import { TodoPanel } from "@/components/TodoPanel";
+
 /**
  * Idle view composition (spec §6.2).
- * Media-first layout with subdued TODO panel. Placeholder for M0.
+ * Media-first layout with subdued TODO panel.
  */
 export default function IdlePage() {
   return (
@@ -16,18 +18,8 @@ export default function IdlePage() {
         </div>
       </section>
 
-      {/* TODO panel — present but subdued (spec §12.1) */}
-      <aside
-        className="border-t border-[#262626] bg-[var(--panel)] px-6 py-4 backdrop-blur-sm"
-        aria-label="TODO checklist"
-      >
-        <h2 className="mb-2 text-sm font-medium text-[var(--muted)]">
-          TODO
-        </h2>
-        <p className="text-sm text-[var(--muted)]">
-          Checklist items will appear here. Settings to select TODO file path.
-        </p>
-      </aside>
+      {/* TODO panel — present but subdued (spec §12.1), full CRUD (spec §5.3) */}
+      <TodoPanel />
     </main>
   );
 }

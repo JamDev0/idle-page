@@ -14,3 +14,14 @@ export interface Task {
   /** Original source line for diff-safe writes. */
   rawLine: string;
 }
+
+/** File health for TODO source (spec §8.1). */
+export type TodoFileHealth = "ok" | "missing" | "unreadable" | "parse_error";
+
+/** Result of parsing TODO markdown (spec §8.1). */
+export interface TodoParseResult {
+  tasks: Task[];
+  parseWarnings: string[];
+  fileHealth: TodoFileHealth;
+  lastModified?: string;
+}

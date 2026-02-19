@@ -1,4 +1,4 @@
-export type { Task } from "./task";
+export type { Task, TodoFileHealth, TodoParseResult } from "./task";
 export type {
   MediaItem,
   MediaType,

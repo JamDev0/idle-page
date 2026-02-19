@@ -1,0 +1,292 @@
+"use client";
+
+import Link from "next/link";
+import { useCallback, useEffect, useState } from "react";
+import { loadSettings } from "@/lib/settings-storage";
+import type { Task } from "@/types/task";
+import type { TodoFileHealth, TodoParseResult } from "@/types/task";
+
+const API_BASE = "/api/todo";
+
+function query(filePath: string): string {
+  return `?filePath=${encodeURIComponent(filePath)}`;
+}
+
+export function TodoPanel() {
+  const [filePath, setFilePath] = useState("");
+  const [data, setData] = useState<TodoParseResult | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editText, setEditText] = useState("");
+  const [newText, setNewText] = useState("");
+
+  const fetchTasks = useCallback(async (path: string) => {
+    if (!path.trim()) {
+      setData(null);
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch(`${API_BASE}${query(path)}`);
+      const json = await res.json();
+      if (!res.ok) {
+        setError(json.error ?? "Request failed");
+        setData(null);
+        return;
+      }
+      setData(json);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load");
+      setData(null);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    const s = loadSettings();
+    setFilePath(s.todoFilePath);
+    if (s.todoFilePath) fetchTasks(s.todoFilePath);
+  }, [fetchTasks]);
+
+  const handleAdd = useCallback(async () => {
+    const text = newText.trim();
+    if (!text || !filePath) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch(`${API_BASE}${query(filePath)}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        setError(json.error ?? "Create failed");
+        return;
+      }
+      setNewText("");
+      await fetchTasks(filePath);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Create failed");
+    } finally {
+      setLoading(false);
+    }
+  }, [filePath, newText, fetchTasks]);
+
+  const handleToggle = useCallback(
+    async (task: Task) => {
+      if (!filePath) return;
+      setLoading(true);
+      setError(null);
+      try {
+        const res = await fetch(`${API_BASE}/${encodeURIComponent(task.id)}${query(filePath)}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ checked: !task.checked }),
+        });
+        const json = await res.json();
+        if (!res.ok) {
+          setError(json.error ?? "Update failed");
+          return;
+        }
+        await fetchTasks(filePath);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Update failed");
+      } finally {
+        setLoading(false);
+      }
+    },
+    [filePath, fetchTasks]
+  );
+
+  const handleSaveEdit = useCallback(
+    async (id: string) => {
+      if (!filePath) return;
+      const text = editText.trim();
+      setEditingId(null);
+      setEditText("");
+      setLoading(true);
+      setError(null);
+      try {
+        const res = await fetch(`${API_BASE}/${encodeURIComponent(id)}${query(filePath)}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text }),
+        });
+        if (!res.ok) {
+          const json = await res.json();
+          setError(json.error ?? "Update failed");
+          return;
+        }
+        await fetchTasks(filePath);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Update failed");
+      } finally {
+        setLoading(false);
+      }
+    },
+    [filePath, editText, fetchTasks]
+  );
+
+  const handleDelete = useCallback(
+    async (id: string) => {
+      if (!filePath) return;
+      setLoading(true);
+      setError(null);
+      try {
+        const res = await fetch(`${API_BASE}/${encodeURIComponent(id)}${query(filePath)}`, {
+          method: "DELETE",
+        });
+        if (!res.ok) {
+          const json = await res.json();
+          setError(json.error ?? "Delete failed");
+          return;
+        }
+        await fetchTasks(filePath);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Delete failed");
+      } finally {
+        setLoading(false);
+      }
+    },
+    [filePath, fetchTasks]
+  );
+
+  const startEdit = useCallback((task: Task) => {
+    setEditingId(task.id);
+    setEditText(task.text);
+  }, []);
+
+  const showCompleted = loadSettings().showCompleted;
+  const tasks = data?.tasks ?? [];
+  const visibleTasks = showCompleted
+    ? tasks
+    : tasks.filter((t) => !t.checked);
+  const health = data?.fileHealth ?? null;
+  const isDegraded = health && health !== "ok" && health !== "missing";
+
+  return (
+    <aside
+      className="border-t border-[#262626] bg-[var(--panel)] px-6 py-4 backdrop-blur-sm"
+      aria-label="TODO checklist"
+    >
+      <h2 className="mb-2 text-sm font-medium text-[var(--muted)]">TODO</h2>
+
+      {!filePath.trim() ? (
+        <p className="text-sm text-[var(--muted)]">
+          <Link href="/settings" className="underline hover:text-[var(--fg)]">
+            Select TODO file path
+          </Link>{" "}
+          in settings.
+        </p>
+      ) : (
+        <>
+          {isDegraded && (
+            <p className="mb-2 text-sm text-amber-500" role="alert">
+              File: {health}. {data?.parseWarnings?.join(" ") ?? ""}
+            </p>
+          )}
+          {error && (
+            <p className="mb-2 text-sm text-red-400" role="alert">
+              {error}
+            </p>
+          )}
+          {loading && (
+            <p className="mb-2 text-sm text-[var(--muted)]">Loading…</p>
+          )}
+          <ul className="space-y-1 text-sm">
+            {visibleTasks.map((task) => (
+              <li
+                key={task.id}
+                className={`flex items-center gap-2 ${task.checked ? "opacity-60" : ""}`}
+              >
+                <button
+                  type="button"
+                  onClick={() => handleToggle(task)}
+                  aria-label={task.checked ? "Mark incomplete" : "Mark complete"}
+                  className="shrink-0 rounded border border-[#404040] bg-transparent px-1.5 py-0.5 text-xs"
+                >
+                  {task.checked ? "✓" : "○"}
+                </button>
+                {editingId === task.id ? (
+                  <>
+                    <input
+                      type="text"
+                      value={editText}
+                      onChange={(e) => setEditText(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") handleSaveEdit(task.id);
+                        if (e.key === "Escape") {
+                          setEditingId(null);
+                          setEditText("");
+                        }
+                      }}
+                      className="min-w-0 flex-1 rounded border border-[#404040] bg-[#0f0f0f] px-2 py-1"
+                      autoFocus
+                    />
+                    <button
+                      type="button"
+                      onClick={() => handleSaveEdit(task.id)}
+                      className="shrink-0 text-xs text-[var(--muted)] hover:text-[var(--fg)]"
+                    >
+                      Save
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <span
+                      className={`min-w-0 flex-1 ${task.checked ? "line-through text-[var(--muted)]" : ""}`}
+                    >
+                      {task.text || "(empty)"}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => startEdit(task)}
+                      className="shrink-0 text-xs text-[var(--muted)] hover:text-[var(--fg)]"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDelete(task.id)}
+                      aria-label="Delete task"
+                      className="shrink-0 text-xs text-[var(--muted)] hover:text-red-400"
+                    >
+                      Delete
+                    </button>
+                  </>
+                )}
+              </li>
+            ))}
+          </ul>
+          <div className="mt-3 flex gap-2">
+            <input
+              type="text"
+              value={newText}
+              onChange={(e) => setNewText(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleAdd()}
+              placeholder="New task…"
+              className="min-w-0 flex-1 rounded border border-[#404040] bg-[#0f0f0f] px-2 py-1.5 text-sm"
+            />
+            <button
+              type="button"
+              onClick={handleAdd}
+              disabled={!newText.trim() || loading}
+              className="shrink-0 rounded bg-[#262626] px-3 py-1.5 text-sm hover:bg-[#333] disabled:opacity-50"
+            >
+              Add
+            </button>
+          </div>
+          <p className="mt-2 text-xs text-[var(--muted)]">
+            <Link href="/settings" className="underline hover:text-[var(--fg)]">
+              Settings
+            </Link>
+          </p>
+        </>
+      )}
+    </aside>
+  );
+}
