@@ -155,6 +155,52 @@ export function TodoPanel() {
     [filePath, fetchTasks]
   );
 
+  const handleReorder = useCallback(
+    async (orderedTaskIds: string[]) => {
+      if (!filePath) return;
+      setLoading(true);
+      setError(null);
+      try {
+        const res = await fetch(`${API_BASE}/reorder${query(filePath)}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ orderedTaskIds }),
+        });
+        const json = await res.json();
+        if (!res.ok) {
+          setError(json.reason ?? json.error ?? "Reorder failed");
+          return;
+        }
+        setData(json);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Reorder failed");
+      } finally {
+        setLoading(false);
+      }
+    },
+    [filePath]
+  );
+
+  const moveUp = useCallback(
+    (index: number) => {
+      const list = data?.tasks ?? [];
+      if (index <= 0 || index >= list.length) return;
+      const next = [...list.slice(0, index - 1), list[index], list[index - 1], ...list.slice(index + 1)];
+      handleReorder(next.map((t) => t.id));
+    },
+    [data?.tasks, handleReorder]
+  );
+
+  const moveDown = useCallback(
+    (index: number) => {
+      const list = data?.tasks ?? [];
+      if (index < 0 || index >= list.length - 1) return;
+      const next = [...list.slice(0, index), list[index + 1], list[index], ...list.slice(index + 2)];
+      handleReorder(next.map((t) => t.id));
+    },
+    [data?.tasks, handleReorder]
+  );
+
   const startEdit = useCallback((task: Task) => {
     setEditingId(task.id);
     setEditText(task.text);
@@ -167,6 +213,13 @@ export function TodoPanel() {
     : tasks.filter((t) => !t.checked);
   const health = data?.fileHealth ?? null;
   const isDegraded = health && health !== "ok" && health !== "missing";
+
+  const indexInFullList = (task: Task) => tasks.findIndex((t) => t.id === task.id);
+  const canMoveUp = (task: Task) => indexInFullList(task) > 0;
+  const canMoveDown = (task: Task) => {
+    const i = indexInFullList(task);
+    return i >= 0 && i < tasks.length - 1;
+  };
 
   return (
     <aside
@@ -242,6 +295,24 @@ export function TodoPanel() {
                     >
                       {task.text || "(empty)"}
                     </span>
+                    <button
+                      type="button"
+                      onClick={() => moveUp(indexInFullList(task))}
+                      disabled={!canMoveUp(task) || loading}
+                      aria-label="Move up"
+                      className="shrink-0 text-xs text-[var(--muted)] hover:text-[var(--fg)] disabled:opacity-40"
+                    >
+                      ↑
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => moveDown(indexInFullList(task))}
+                      disabled={!canMoveDown(task) || loading}
+                      aria-label="Move down"
+                      className="shrink-0 text-xs text-[var(--muted)] hover:text-[var(--fg)] disabled:opacity-40"
+                    >
+                      ↓
+                    </button>
                     <button
                       type="button"
                       onClick={() => startEdit(task)}

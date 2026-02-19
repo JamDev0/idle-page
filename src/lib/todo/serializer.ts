@@ -1,9 +1,78 @@
 /**
  * Safe TODO writeback (spec §6.2, §9.2).
  * Patches only recognized checklist lines; preserves all other content.
+ * Reorder: allowed only in contiguous checklist blocks (spec §9.3).
  */
 import type { Task } from "@/types/task";
 import { IDLE_ID_PREFIX } from "@/lib/fs/hostPath";
+
+export type ReorderValidation =
+  | { ok: true; minLineRef: number; maxLineRef: number }
+  | { ok: false; reason: string };
+
+/**
+ * Validates that orderedTaskIds form a contiguous checklist block (no non-checklist lines in range).
+ * Returns the line range when safe, or a precise reason when unsafe.
+ */
+export function validateReorderWindow(
+  tasks: Task[],
+  orderedTaskIds: string[]
+): ReorderValidation {
+  if (!Array.isArray(orderedTaskIds) || orderedTaskIds.length === 0) {
+    return { ok: false, reason: "orderedTaskIds must be a non-empty array" };
+  }
+  const idSet = new Set(tasks.map((t) => t.id));
+  const missing = orderedTaskIds.filter((id) => !idSet.has(id));
+  if (missing.length > 0) {
+    return { ok: false, reason: `Unknown task id(s): ${missing.join(", ")}` };
+  }
+  const taskById = new Map(tasks.map((t) => [t.id, t]));
+  const reorderTasks = orderedTaskIds
+    .map((id) => taskById.get(id))
+    .filter((t): t is Task => t !== undefined);
+  const lineRefs = reorderTasks.map((t) => t.lineRef).sort((a, b) => a - b);
+  const minLineRef = lineRefs[0] ?? 0;
+  const maxLineRef = lineRefs[lineRefs.length - 1] ?? 0;
+  const expectedSpan = maxLineRef - minLineRef + 1;
+  if (reorderTasks.length !== expectedSpan) {
+    return {
+      ok: false,
+      reason:
+        "Reorder only allowed in a contiguous checklist block; mixed or non-checklist content in range",
+    };
+  }
+  const contiguous =
+    lineRefs.every((ref, i) => ref === minLineRef + i);
+  if (!contiguous) {
+    return {
+      ok: false,
+      reason:
+        "Reorder only allowed in a contiguous checklist block; non-checklist lines in range",
+    };
+  }
+  return { ok: true, minLineRef, maxLineRef };
+}
+
+/**
+ * Replaces the contiguous block [minLineRef, maxLineRef] with checklist lines in orderedTaskIds order.
+ * Caller must have validated with validateReorderWindow first.
+ */
+export function applyReorder(
+  lines: string[],
+  tasks: Task[],
+  orderedTaskIds: string[],
+  minLineRef: number,
+  maxLineRef: number
+): string[] {
+  const taskById = new Map(tasks.map((t) => [t.id, t]));
+  const orderedRawLines = orderedTaskIds
+    .map((id) => taskById.get(id)?.rawLine)
+    .filter((line): line is string => line !== undefined);
+  if (orderedRawLines.length !== orderedTaskIds.length) return lines;
+  const before = lines.slice(0, minLineRef);
+  const after = lines.slice(maxLineRef + 1);
+  return [...before, ...orderedRawLines, ...after];
+}
 
 /** Builds a single checklist line with optional idle-id comment. */
 export function buildChecklistLine(task: {
