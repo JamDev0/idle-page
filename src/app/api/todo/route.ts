@@ -6,6 +6,7 @@ import { NextRequest } from "next/server";
 import { mkdir } from "node:fs/promises";
 import { dirname } from "node:path";
 import { normalizeTodoFilePath } from "@/lib/fs/hostPath";
+import { createBackup, pruneBackups } from "@/lib/todo/backup";
 import { readTodoFile, writeTodoFile } from "@/lib/todo/file";
 import { parseTodoFile, parseTodoMarkdown } from "@/lib/todo/parser";
 import {
@@ -134,6 +135,12 @@ export async function POST(
   try {
     await mkdir(dirname(filePath), { recursive: true });
     await writeTodoFile(filePath, newContent);
+    try {
+      await createBackup(filePath, newContent);
+      await pruneBackups(filePath, 5);
+    } catch {
+      // backup is best-effort; do not fail the request
+    }
   } catch {
     return Response.json(
       { error: "File could not be written" },

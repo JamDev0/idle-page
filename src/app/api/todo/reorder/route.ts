@@ -4,6 +4,7 @@
  */
 import { NextRequest } from "next/server";
 import { normalizeTodoFilePath } from "@/lib/fs/hostPath";
+import { createBackup, pruneBackups } from "@/lib/todo/backup";
 import { readTodoFile, writeTodoFile } from "@/lib/todo/file";
 import { parseTodoMarkdown } from "@/lib/todo/parser";
 import {
@@ -81,6 +82,12 @@ export async function POST(request: NextRequest) {
 
   try {
     await writeTodoFile(filePath, newContent);
+    try {
+      await createBackup(filePath, newContent);
+      await pruneBackups(filePath, 5);
+    } catch {
+      // backup is best-effort; do not fail the request
+    }
   } catch {
     return Response.json(
       { error: "File could not be written" },
