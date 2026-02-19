@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import { loadSettings } from "@/lib/settings-storage";
 import type { Task } from "@/types/task";
 import type { TodoFileHealth, TodoParseResult } from "@/types/task";
+import type { WatcherHealth } from "@/lib/watch/todoWatcher";
 
 const API_BASE = "/api/todo";
 
@@ -20,6 +21,8 @@ export function TodoPanel() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editText, setEditText] = useState("");
   const [newText, setNewText] = useState("");
+  const [watcherHealth, setWatcherHealth] = useState<WatcherHealth | null>(null);
+  const [watcherMessage, setWatcherMessage] = useState<string | null>(null);
 
   const fetchTasks = useCallback(async (path: string) => {
     if (!path.trim()) {
@@ -50,6 +53,44 @@ export function TodoPanel() {
     setFilePath(s.todoFilePath);
     if (s.todoFilePath) fetchTasks(s.todoFilePath);
   }, [fetchTasks]);
+
+  // SSE stream for file changes and watcher health (spec §8.1, §10.2)
+  useEffect(() => {
+    if (!filePath.trim()) {
+      setWatcherHealth(null);
+      setWatcherMessage(null);
+      return;
+    }
+    const url = `${API_BASE}/stream${query(filePath)}`;
+    const es = new EventSource(url);
+
+    es.addEventListener("change", () => {
+      fetchTasks(filePath);
+    });
+
+    es.addEventListener("health", (e: MessageEvent) => {
+      try {
+        const payload = JSON.parse(e.data) as { status: WatcherHealth; message?: string };
+        setWatcherHealth(payload.status);
+        setWatcherMessage(payload.message ?? null);
+      } catch {
+        setWatcherHealth(null);
+        setWatcherMessage(null);
+      }
+    });
+
+    es.onerror = () => {
+      es.close();
+      setWatcherHealth("degraded");
+      setWatcherMessage("Live updates disconnected. Use manual refresh.");
+    };
+
+    return () => {
+      es.close();
+      setWatcherHealth(null);
+      setWatcherMessage(null);
+    };
+  }, [filePath, fetchTasks]);
 
   const handleAdd = useCallback(async () => {
     const text = newText.trim();
@@ -213,6 +254,8 @@ export function TodoPanel() {
     : tasks.filter((t) => !t.checked);
   const health = data?.fileHealth ?? null;
   const isDegraded = health && health !== "ok" && health !== "missing";
+  const isWatcherDegraded =
+    watcherHealth === "degraded" || watcherHealth === "retrying";
 
   const indexInFullList = (task: Task) => tasks.findIndex((t) => t.id === task.id);
   const canMoveUp = (task: Task) => indexInFullList(task) > 0;
@@ -237,6 +280,11 @@ export function TodoPanel() {
         </p>
       ) : (
         <>
+          {isWatcherDegraded && (
+            <p className="mb-2 text-sm text-amber-500" role="alert">
+              {watcherMessage ?? (watcherHealth === "retrying" ? "Watcher retrying…" : "Watcher unavailable.")}
+            </p>
+          )}
           {isDegraded && (
             <p className="mb-2 text-sm text-amber-500" role="alert">
               File: {health}. {data?.parseWarnings?.join(" ") ?? ""}
