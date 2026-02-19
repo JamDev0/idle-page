@@ -266,7 +266,14 @@ export function TodoPanel() {
 
   return (
     <aside
-      className="border-t border-[#262626] bg-[var(--panel)] px-6 py-4 backdrop-blur-sm"
+      className="idle-todo-panel absolute z-10 rounded-lg px-6 py-4"
+      style={{
+        backgroundColor: "var(--color-panel-bg)",
+        border: "1px solid var(--color-panel-border)",
+        boxShadow: "var(--shadow-panel)",
+        backdropFilter: "blur(var(--blur-panel))",
+        WebkitBackdropFilter: "blur(var(--blur-panel))",
+      }}
       aria-label="TODO checklist"
     >
       <h2 className="mb-2 text-sm font-medium text-[var(--muted)]">TODO</h2>
@@ -302,7 +309,8 @@ export function TodoPanel() {
             {visibleTasks.map((task) => (
               <li
                 key={task.id}
-                className={`flex items-center gap-2 ${task.checked ? "opacity-60" : ""}`}
+                className="flex items-center gap-2"
+                style={task.checked ? { opacity: "var(--opacity-task-completed)" } : undefined}
               >
                 <button
                   type="button"

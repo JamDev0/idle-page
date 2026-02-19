@@ -3,16 +3,18 @@ import { TodoPanel } from "@/components/TodoPanel";
 
 /**
  * Idle view composition (spec §6.2).
- * Media-first layout with subdued TODO panel.
+ * Media full viewport; TODO panel and controls floating per design variant (§13.2).
  */
 export default function IdlePage() {
   return (
-    <main className="grid min-h-screen grid-rows-[1fr_auto]">
-      {/* Media area — dominant visual layer (spec §12.1), Next/Prev only (spec §12.2) */}
+    <main className="relative min-h-screen overflow-hidden">
+      {/* Media area — full viewport, dominant visual layer (spec §12.1) */}
       <MediaArea />
 
-      {/* TODO panel — present but subdued (spec §12.1), full CRUD (spec §5.3) */}
+      {/* TODO panel — floating bottom-left (void) or bottom-right (glass), subdued (§12.1) */}
       <TodoPanel />
+
+      {/* Control bar is inside MediaArea, positioned bottom-center */}
     </main>
   );
 }

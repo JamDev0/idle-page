@@ -3,13 +3,16 @@
  */
 export type RotationMode = "random" | "playlist";
 
+/** Design variant (spec §13.2 finalists). */
+export type DesignVariant = "void-minimal" | "glass-ambient";
+
 export interface Settings {
   todoFilePath: string;
   rotationMode: RotationMode;
   showCompleted: boolean;
   prefetchConcurrency: number;
   remoteCacheLimitMb: number;
-  designVariant: string;
+  designVariant: DesignVariant;
 }
 
 export const DEFAULT_SETTINGS: Settings = {

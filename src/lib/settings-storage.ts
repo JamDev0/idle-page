@@ -17,10 +17,13 @@ export function loadSettings(): Settings {
   }
 }
 
+export const SETTINGS_CHANGED_EVENT = "idle-page-settings-changed";
+
 export function saveSettings(settings: Settings): void {
   if (typeof window === "undefined") return;
   try {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+    window.dispatchEvent(new CustomEvent(SETTINGS_CHANGED_EVENT, { detail: settings }));
   } catch {
     // ignore
   }

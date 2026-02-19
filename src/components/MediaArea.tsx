@@ -103,7 +103,7 @@ export function MediaArea() {
   if (loading) {
     return (
       <section
-        className="flex min-h-[40vh] items-center justify-center bg-[#0f0f0f]"
+        className="absolute inset-0 flex items-center justify-center bg-[var(--color-bg-base)]"
         aria-label="Media display"
       >
         <p className="text-[var(--muted)]">Loading media…</p>
@@ -113,17 +113,27 @@ export function MediaArea() {
 
   return (
     <section
-      className="relative flex min-h-[40vh] flex-col bg-[#0f0f0f]"
+      className="absolute inset-0 flex flex-col bg-[var(--color-bg-base)]"
       aria-label="Media display"
     >
       <div className="flex flex-1 items-center justify-center">
         <MediaViewer item={currentItem} onNext={goNext} />
       </div>
-      <div className="flex items-center justify-center gap-4 border-t border-[var(--panel)] py-3">
+      {/* Control chip: bottom-center, token-based (spec §12.2, tokens §3–4) */}
+      <div
+        className="idle-control-bar absolute bottom-4 left-1/2 flex -translate-x-1/2 items-center justify-center gap-4"
+        style={{
+          backgroundColor: "var(--control-bg)",
+          color: "var(--control-text)",
+          borderRadius: "var(--radius-md)",
+          padding: "var(--space-2) var(--space-4)",
+          boxShadow: "var(--shadow-panel)",
+        }}
+      >
         <button
           type="button"
           onClick={goPrev}
-          className="rounded bg-[var(--panel)] px-4 py-2 text-sm text-[var(--fg)] hover:opacity-90"
+          className="rounded px-4 py-2 text-sm hover:opacity-90"
           aria-label="Previous"
         >
           Prev
@@ -131,7 +141,7 @@ export function MediaArea() {
         <button
           type="button"
           onClick={goNext}
-          className="rounded bg-[var(--panel)] px-4 py-2 text-sm text-[var(--fg)] hover:opacity-90"
+          className="rounded px-4 py-2 text-sm hover:opacity-90"
           aria-label="Next"
         >
           Next

@@ -8,5 +8,7 @@ describe("Settings types", () => {
     expect(DEFAULT_SETTINGS.showCompleted).toBe(true);
     expect(DEFAULT_SETTINGS.todoFilePath).toBe("");
     expect(["random", "playlist"]).toContain(DEFAULT_SETTINGS.rotationMode);
+    expect(DEFAULT_SETTINGS.designVariant).toBe("void-minimal");
+    expect(["void-minimal", "glass-ambient"]).toContain(DEFAULT_SETTINGS.designVariant);
   });
 });
