@@ -57,6 +57,26 @@ export function MediaArea() {
   const currentItem: MediaItem | null =
     displayList.length > 0 ? displayList[currentIndex % displayList.length] ?? null : null;
 
+  // Prefetch next 2 items (spec §11.3) to keep transitions seamless
+  useEffect(() => {
+    if (displayList.length === 0) return;
+    const s = loadSettings();
+    const concurrency = Math.max(1, s.prefetchConcurrency ?? 2);
+    const nextIndices: number[] = [];
+    for (let i = 1; i <= concurrency; i++) {
+      nextIndices.push((currentIndex + i) % displayList.length);
+    }
+    const nextIds = nextIndices
+      .map((i) => displayList[i]?.id)
+      .filter((id): id is string => typeof id === "string");
+    if (nextIds.length === 0) return;
+    fetch("/api/media/prefetch", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ itemIds: nextIds }),
+    }).catch(() => {});
+  }, [displayList, currentIndex]);
+
   const goNext = useCallback(() => {
     if (displayList.length === 0) return;
     if (rotationMode === "playlist") {

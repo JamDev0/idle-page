@@ -8,7 +8,7 @@ interface MediaViewerProps {
 }
 
 function mediaSrc(item: MediaItem): string {
-  if (item.source === "local") {
+  if (item.source === "local" || item.source === "remote") {
     return `/api/media/asset?id=${encodeURIComponent(item.id)}`;
   }
   return item.uri;
