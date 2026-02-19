@@ -1,0 +1,15 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg: #0a0a0a;
+  --fg: #e5e5e5;
+  --muted: #737373;
+  --panel: rgba(23, 23, 23, 0.85);
+}
+
+body {
+  background-color: var(--bg);
+  color: var(--fg);
+}
