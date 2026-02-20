@@ -6,4 +6,5 @@ export type {
   MediaStatus,
 } from "./media";
 export type { Settings, RotationMode } from "./settings";
+export type { MediaHealthResponse } from "./media";
 export { DEFAULT_SETTINGS } from "./settings";

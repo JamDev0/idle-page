@@ -13,6 +13,8 @@ export interface MediaItem {
   /** Absolute local path or URL. */
   uri: string;
   title?: string;
+  /** Source/author for quotes. */
+  attribution?: string;
   durationHintMs?: number;
   status: MediaStatus;
   /** Optional warning (e.g. large file) for defensive soft limits (spec §11.4). */
