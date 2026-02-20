@@ -25,6 +25,8 @@ function getFilePath(request: NextRequest): string | null {
 interface PatchBody {
   text?: string;
   checked?: boolean;
+  /** Client's lastModified when data was loaded; if different from file at write time, response includes externalChangeDetected (spec §5.3). */
+  lastModified?: string;
 }
 
 export async function PATCH(
@@ -61,9 +63,11 @@ export async function PATCH(
   }
 
   let content: string;
+  let currentLastModified: string | undefined;
   try {
     const read = await readTodoFile(filePath);
     content = read.content ?? "";
+    currentLastModified = read.lastModified;
   } catch {
     return Response.json(
       { error: "File could not be read" },
@@ -102,8 +106,16 @@ export async function PATCH(
     );
   }
 
+  const externalChangeDetected =
+    typeof body.lastModified === "string" &&
+    currentLastModified != null &&
+    body.lastModified !== currentLastModified;
+
   const result: Task = { ...updated, rawLine: newLine };
-  return Response.json({ task: result }, { status: 200 });
+  return Response.json(
+    { task: result, externalChangeDetected: externalChangeDetected || undefined },
+    { status: 200 }
+  );
 }
 
 export async function DELETE(
@@ -123,10 +135,19 @@ export async function DELETE(
     return Response.json({ error: "Missing task id" }, { status: 400 });
   }
 
+  let body: { lastModified?: string } = {};
+  try {
+    body = await request.json();
+  } catch {
+    // DELETE may have no body
+  }
+
   let content: string;
+  let currentLastModified: string | undefined;
   try {
     const read = await readTodoFile(filePath);
     content = read.content ?? "";
+    currentLastModified = read.lastModified;
   } catch {
     return Response.json(
       { error: "File could not be read" },
@@ -159,5 +180,13 @@ export async function DELETE(
     );
   }
 
-  return Response.json({ deleted: id }, { status: 200 });
+  const externalChangeDetected =
+    typeof body.lastModified === "string" &&
+    currentLastModified != null &&
+    body.lastModified !== currentLastModified;
+
+  return Response.json(
+    { deleted: id, externalChangeDetected: externalChangeDetected || undefined },
+    { status: 200 }
+  );
 }

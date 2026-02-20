@@ -23,6 +23,7 @@ export function TodoPanel() {
   const [newText, setNewText] = useState("");
   const [watcherHealth, setWatcherHealth] = useState<WatcherHealth | null>(null);
   const [watcherMessage, setWatcherMessage] = useState<string | null>(null);
+  const [externalChangeBanner, setExternalChangeBanner] = useState<string | null>(null);
   const [, setSettingsVersion] = useState(0);
   const checkpointTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -131,12 +132,17 @@ export function TodoPanel() {
       const res = await fetch(`${API_BASE}${query(filePath)}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text }),
+        body: JSON.stringify({ text, lastModified: data?.lastModified }),
       });
       const json = await res.json();
       if (!res.ok) {
         setError(json.error ?? "Create failed");
         return;
+      }
+      if (json.externalChangeDetected) {
+        setExternalChangeBanner(
+          "File was modified by another application; your edit was applied (last write wins)."
+        );
       }
       setNewText("");
       await fetchTasks(filePath);
@@ -146,7 +152,7 @@ export function TodoPanel() {
     } finally {
       setLoading(false);
     }
-  }, [filePath, newText, fetchTasks, scheduleCheckpoint]);
+  }, [filePath, newText, data?.lastModified, fetchTasks, scheduleCheckpoint]);
 
   const handleToggle = useCallback(
     async (task: Task) => {
@@ -157,12 +163,17 @@ export function TodoPanel() {
         const res = await fetch(`${API_BASE}/${encodeURIComponent(task.id)}${query(filePath)}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ checked: !task.checked }),
+          body: JSON.stringify({ checked: !task.checked, lastModified: data?.lastModified }),
         });
         const json = await res.json();
         if (!res.ok) {
           setError(json.error ?? "Update failed");
           return;
+        }
+        if (json.externalChangeDetected) {
+          setExternalChangeBanner(
+            "File was modified by another application; your edit was applied (last write wins)."
+          );
         }
         await fetchTasks(filePath);
         scheduleCheckpoint(filePath);
@@ -172,7 +183,7 @@ export function TodoPanel() {
         setLoading(false);
       }
     },
-    [filePath, fetchTasks, scheduleCheckpoint]
+    [filePath, data?.lastModified, fetchTasks, scheduleCheckpoint]
   );
 
   const handleSaveEdit = useCallback(
@@ -187,12 +198,17 @@ export function TodoPanel() {
         const res = await fetch(`${API_BASE}/${encodeURIComponent(id)}${query(filePath)}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ text }),
+          body: JSON.stringify({ text, lastModified: data?.lastModified }),
         });
+        const json = await res.json();
         if (!res.ok) {
-          const json = await res.json();
           setError(json.error ?? "Update failed");
           return;
+        }
+        if (json.externalChangeDetected) {
+          setExternalChangeBanner(
+            "File was modified by another application; your edit was applied (last write wins)."
+          );
         }
         await fetchTasks(filePath);
         scheduleCheckpoint(filePath);
@@ -202,7 +218,7 @@ export function TodoPanel() {
         setLoading(false);
       }
     },
-    [filePath, editText, fetchTasks, scheduleCheckpoint]
+    [filePath, editText, data?.lastModified, fetchTasks, scheduleCheckpoint]
   );
 
   const handleDelete = useCallback(
@@ -213,11 +229,18 @@ export function TodoPanel() {
       try {
         const res = await fetch(`${API_BASE}/${encodeURIComponent(id)}${query(filePath)}`, {
           method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ lastModified: data?.lastModified }),
         });
+        const json = await res.json();
         if (!res.ok) {
-          const json = await res.json();
           setError(json.error ?? "Delete failed");
           return;
+        }
+        if (json.externalChangeDetected) {
+          setExternalChangeBanner(
+            "File was modified by another application; your edit was applied (last write wins)."
+          );
         }
         await fetchTasks(filePath);
         scheduleCheckpoint(filePath);
@@ -227,7 +250,7 @@ export function TodoPanel() {
         setLoading(false);
       }
     },
-    [filePath, fetchTasks, scheduleCheckpoint]
+    [filePath, data?.lastModified, fetchTasks, scheduleCheckpoint]
   );
 
   const handleReorder = useCallback(
@@ -239,14 +262,19 @@ export function TodoPanel() {
         const res = await fetch(`${API_BASE}/reorder${query(filePath)}`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ orderedTaskIds }),
+          body: JSON.stringify({ orderedTaskIds, lastModified: data?.lastModified }),
         });
         const json = await res.json();
         if (!res.ok) {
           setError(json.reason ?? json.error ?? "Reorder failed");
           return;
         }
-        setData(json);
+        if (json.externalChangeDetected) {
+          setExternalChangeBanner(
+            "File was modified by another application; your edit was applied (last write wins)."
+          );
+        }
+        await fetchTasks(filePath);
         scheduleCheckpoint(filePath);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Reorder failed");
@@ -254,7 +282,7 @@ export function TodoPanel() {
         setLoading(false);
       }
     },
-    [filePath, scheduleCheckpoint]
+    [filePath, data?.lastModified, fetchTasks, scheduleCheckpoint]
   );
 
   const moveUp = useCallback(
@@ -325,6 +353,19 @@ export function TodoPanel() {
           {isWatcherDegraded && (
             <p className="mb-2 text-sm text-amber-500" role="alert">
               {watcherMessage ?? (watcherHealth === "retrying" ? "Watcher retrying…" : "Watcher unavailable.")}
+            </p>
+          )}
+          {externalChangeBanner && (
+            <p className="mb-2 flex items-center gap-2 text-sm text-amber-500" role="alert">
+              <span className="flex-1">{externalChangeBanner}</span>
+              <button
+                type="button"
+                onClick={() => setExternalChangeBanner(null)}
+                className="shrink-0 rounded px-2 py-0.5 text-xs underline hover:no-underline"
+                aria-label="Dismiss"
+              >
+                Dismiss
+              </button>
             </p>
           )}
           {isDegraded && (

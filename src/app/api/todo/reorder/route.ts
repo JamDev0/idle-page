@@ -23,6 +23,8 @@ function getFilePath(request: NextRequest): string | null {
 
 interface ReorderBody {
   orderedTaskIds?: string[];
+  /** Client's lastModified when data was loaded; if different from file at write time, response includes externalChangeDetected (spec §5.3). */
+  lastModified?: string;
 }
 
 export async function POST(request: NextRequest) {
@@ -50,9 +52,11 @@ export async function POST(request: NextRequest) {
   }
 
   let content: string;
+  let currentLastModified: string | undefined;
   try {
     const read = await readTodoFile(filePath);
     content = read.content ?? "";
+    currentLastModified = read.lastModified;
   } catch {
     return Response.json(
       { error: "File could not be read" },
@@ -95,11 +99,19 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  const externalChangeDetected =
+    typeof body.lastModified === "string" &&
+    currentLastModified != null &&
+    body.lastModified !== currentLastModified;
+
   const reparse = parseTodoMarkdown(newContent);
   const result: TodoParseResult = {
     tasks: reparse.tasks,
     parseWarnings: reparse.parseWarnings,
     fileHealth: reparse.fileHealth,
   };
-  return Response.json(result, { status: 200 });
+  return Response.json(
+    { ...result, externalChangeDetected: externalChangeDetected || undefined },
+    { status: 200 }
+  );
 }

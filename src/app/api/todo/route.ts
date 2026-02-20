@@ -69,6 +69,8 @@ export async function GET(request: NextRequest) {
 interface PostBody {
   text?: string;
   afterTaskId?: string;
+  /** Client's lastModified when data was loaded; if different from file at write time, response includes externalChangeDetected (spec §5.3). */
+  lastModified?: string;
 }
 
 export async function POST(
@@ -98,11 +100,11 @@ export async function POST(
   }
 
   let content: string;
-  let lastModified: string | undefined;
+  let currentLastModified: string | undefined;
   try {
     const read = await readTodoFile(filePath);
     content = read.content ?? "";
-    lastModified = read.lastModified;
+    currentLastModified = read.lastModified;
   } catch {
     return Response.json(
       { error: "File could not be read" },
@@ -148,6 +150,11 @@ export async function POST(
     );
   }
 
+  const externalChangeDetected =
+    typeof body.lastModified === "string" &&
+    currentLastModified != null &&
+    body.lastModified !== currentLastModified;
+
   const created = {
     id: newId,
     text: newTask.text,
@@ -155,5 +162,8 @@ export async function POST(
     lineRef: insertAfterLineRef + 1,
     rawLine: newLine,
   };
-  return Response.json({ task: created, lastModified }, { status: 201 });
+  return Response.json(
+    { task: created, lastModified: currentLastModified, externalChangeDetected: externalChangeDetected || undefined },
+    { status: 201 }
+  );
 }
