@@ -86,6 +86,42 @@ describe("fetchAndCache", () => {
     const pathAgain = await getCachedPath("https://example.com/ok.png");
     expect(pathAgain).toBe(cached);
   });
+
+  it("retries on failure and succeeds on second attempt (spec §11.2 retry then skip)", async () => {
+    const body = new Uint8Array([4, 5, 6]);
+    let callCount = 0;
+    globalThis.fetch = async (url: string | URL) => {
+      const u = typeof url === "string" ? url : url.toString();
+      callCount += 1;
+      if (u.startsWith("https://example.com/retry")) {
+        if (callCount === 1) return new Response("error", { status: 500 });
+        return new Response(body, {
+          status: 200,
+          headers: { "Content-Type": "image/png" },
+        });
+      }
+      return new Response("not found", { status: 404 });
+    };
+    const limitBytes = 10 * 1024 * 1024;
+    const cached = await fetchAndCache("https://example.com/retry.png", limitBytes);
+    expect(callCount).toBe(2);
+    expect(cached).toBeTruthy();
+    const raw = await readFile(cached);
+    expect(Buffer.compare(raw, Buffer.from(body))).toBe(0);
+  });
+
+  it("throws after max attempts so caller can skip (retry then skip)", async () => {
+    let callCount = 0;
+    globalThis.fetch = async () => {
+      callCount += 1;
+      return new Response("error", { status: 503 });
+    };
+    const limitBytes = 10 * 1024 * 1024;
+    await expect(
+      fetchAndCache("https://example.com/fail.png", limitBytes)
+    ).rejects.toThrow();
+    expect(callCount).toBe(2);
+  });
 });
 
 describe("ensureCacheLimit", () => {
