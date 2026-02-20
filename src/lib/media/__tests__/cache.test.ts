@@ -135,3 +135,38 @@ describe("ensureCacheLimit", () => {
     await rm(otherDir, { recursive: true, force: true });
   });
 });
+
+describe("cache eviction at cap boundary (spec §15.2)", () => {
+  const limitBytes = 50;
+  const bodySize = 40;
+
+  it("evicts LRU entries when total size exceeds limit", async () => {
+    const body = new Uint8Array(bodySize).fill(1);
+    globalThis.fetch = async (url: string | URL) => {
+      const u = typeof url === "string" ? url : url.toString();
+      if (u === "https://example.com/first.png" || u === "https://example.com/second.png") {
+        return new Response(body, {
+          status: 200,
+          headers: { "Content-Type": "image/png" },
+        });
+      }
+      return new Response("not found", { status: 404 });
+    };
+
+    const firstPath = await fetchAndCache("https://example.com/first.png", limitBytes);
+    expect(firstPath).toBeTruthy();
+
+    const secondPath = await fetchAndCache("https://example.com/second.png", limitBytes);
+    expect(secondPath).toBeTruthy();
+
+    const firstCached = await getCachedPath("https://example.com/first.png");
+    const secondCached = await getCachedPath("https://example.com/second.png");
+
+    expect(firstCached).toBeNull();
+    expect(secondCached).toBe(secondPath);
+
+    const stats = await getCacheStats(1);
+    expect(stats.sizeBytes).toBeLessThanOrEqual(limitBytes);
+    expect(stats.count).toBe(1);
+  });
+});
