@@ -62,6 +62,13 @@ export async function PATCH(
     );
   }
 
+  if (hasText && (body.text ?? "").trim() === "") {
+    return Response.json(
+      { error: "text cannot be empty (reject malformed checklist writes)" },
+      { status: 400 }
+    );
+  }
+
   let content: string;
   let currentLastModified: string | undefined;
   try {
@@ -81,10 +88,12 @@ export async function PATCH(
     return Response.json({ error: "Task not found" }, { status: 404 });
   }
 
+  const checkedValue: boolean =
+    hasChecked && typeof body.checked === "boolean" ? body.checked : task.checked;
   const updated: Task = {
     ...task,
-    text: hasText ? (body.text as string).trim() : task.text,
-    checked: hasChecked ? (body.checked as boolean) : task.checked,
+    text: hasText ? (body.text ?? "").trim() : task.text,
+    checked: checkedValue,
   };
   const newLine = buildChecklistLine(updated);
   const lines = content.split(/\r?\n/);

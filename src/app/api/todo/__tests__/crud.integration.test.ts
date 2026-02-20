@@ -120,6 +120,28 @@ describe("TODO API CRUD integration", () => {
     expect(updated?.checked).toBe(true);
   });
 
+  it("PATCH with empty text returns 400 and does not write (spec §5.2 malformed writes)", async () => {
+    const getReq = requestWithPath(filePath, "/api/todo");
+    const getRes = await TodoRoute.GET(getReq);
+    const getData = await getRes.json();
+    const task = getData.tasks.find((t: { text: string }) => t.text === "third");
+    expect(task).toBeDefined();
+    const contentBefore = await readFile(filePath, "utf-8");
+
+    const patchReq = requestWithBody(filePath, `/api/todo/${task.id}`, "PATCH", {
+      text: "   ",
+    });
+    const patchRes = await TodoIdRoute.PATCH(patchReq, {
+      params: Promise.resolve({ id: task.id }),
+    });
+    expect(patchRes.status).toBe(400);
+    const patchData = await patchRes.json();
+    expect(patchData.error).toContain("empty");
+
+    const contentAfter = await readFile(filePath, "utf-8");
+    expect(contentAfter).toBe(contentBefore);
+  });
+
   it("POST reorder reorders tasks", async () => {
     const getReq = requestWithPath(filePath, "/api/todo");
     const getRes = await TodoRoute.GET(getReq);
