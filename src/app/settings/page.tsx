@@ -127,6 +127,24 @@ export default function SettingsPage() {
               Void Minimal: subdued panel bottom-left. Glass Ambient: frosted panel bottom-right.
             </p>
           </div>
+          <div>
+            <label className="flex cursor-pointer items-center gap-2">
+              <input
+                type="checkbox"
+                checked={settings.showCompleted}
+                onChange={(e) =>
+                  setSettings((s) => ({ ...s, showCompleted: e.target.checked }))
+                }
+                className="rounded border-[#404040]"
+              />
+              <span className="text-sm text-[var(--fg)]">
+                Show completed tasks
+              </span>
+            </label>
+            <p className="mt-1 text-xs text-[var(--muted)]">
+              When unchecked, completed items are hidden in the TODO panel.
+            </p>
+          </div>
           <div className="flex items-center gap-3">
             <button
               type="button"

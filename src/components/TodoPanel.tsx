@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { loadSettings } from "@/lib/settings-storage";
+import { loadSettings, SETTINGS_CHANGED_EVENT } from "@/lib/settings-storage";
 import type { Task } from "@/types/task";
 import type { TodoFileHealth, TodoParseResult } from "@/types/task";
 import type { WatcherHealth } from "@/lib/watch/todoWatcher";
@@ -23,7 +23,14 @@ export function TodoPanel() {
   const [newText, setNewText] = useState("");
   const [watcherHealth, setWatcherHealth] = useState<WatcherHealth | null>(null);
   const [watcherMessage, setWatcherMessage] = useState<string | null>(null);
+  const [, setSettingsVersion] = useState(0);
   const checkpointTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    const handler = () => setSettingsVersion((v) => v + 1);
+    window.addEventListener(SETTINGS_CHANGED_EVENT, handler);
+    return () => window.removeEventListener(SETTINGS_CHANGED_EVENT, handler);
+  }, []);
 
   const fetchTasks = useCallback(async (path: string) => {
     if (!path.trim()) {
