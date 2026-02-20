@@ -1,26 +1,19 @@
-/**
- * Path and behavior settings (spec §6.2, frontend-design/components.md §2.7).
- */
 "use client";
 
 import Link from "next/link";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   loadSettings,
   MEDIA_REGISTRY_CHANGED_EVENT,
   saveSettings,
 } from "@/lib/settings-storage";
 import type { Settings } from "@/types/settings";
-import type { DesignVariant, RotationMode } from "@/types/settings";
+import type { RotationMode } from "@/types/settings";
+import type { MediaItem } from "@/types/media";
 
 const ROTATION_MODES: { value: RotationMode; label: string }[] = [
   { value: "random", label: "Random" },
   { value: "playlist", label: "Playlist" },
-];
-
-const DESIGN_VARIANTS: { value: DesignVariant; label: string }[] = [
-  { value: "void-minimal", label: "Void Minimal" },
-  { value: "glass-ambient", label: "Glass Ambient" },
 ];
 
 type CheckpointStatus =
@@ -45,6 +38,31 @@ export default function SettingsPage() {
     useState<MediaImportStatus>({ state: "idle" });
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [remoteUrl, setRemoteUrl] = useState("");
+  const [mediaItems, setMediaItems] = useState<MediaItem[]>([]);
+  const [mediaLoading, setMediaLoading] = useState(true);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [quoteText, setQuoteText] = useState("");
+  const [quoteSource, setQuoteSource] = useState("");
+  const [quoteStatus, setQuoteStatus] = useState<MediaImportStatus>({ state: "idle" });
+
+  const fetchMedia = useCallback(async () => {
+    setMediaLoading(true);
+    try {
+      const res = await fetch("/api/media");
+      const data = (await res.json()) as { items?: MediaItem[] };
+      setMediaItems(data.items ?? []);
+    } catch {
+      setMediaItems([]);
+    }
+    setMediaLoading(false);
+  }, []);
+
+  useEffect(() => {
+    fetchMedia();
+    const handleRegistryChange = () => fetchMedia();
+    window.addEventListener(MEDIA_REGISTRY_CHANGED_EVENT, handleRegistryChange);
+    return () => window.removeEventListener(MEDIA_REGISTRY_CHANGED_EVENT, handleRegistryChange);
+  }, [fetchMedia]);
 
   const handleSave = useCallback(() => {
     saveSettings(settings);
@@ -179,39 +197,77 @@ export default function SettingsPage() {
     setTimeout(() => setMediaImportStatus({ state: "idle" }), 4000);
   }, [remoteUrl]);
 
+  const handleDeleteMedia = useCallback(async (id: string) => {
+    setDeleteId(id);
+    try {
+      const res = await fetch(`/api/media?id=${encodeURIComponent(id)}`, { method: "DELETE" });
+      if (res.ok) {
+        setMediaItems((items) => items.filter((i) => i.id !== id));
+        window.dispatchEvent(new CustomEvent(MEDIA_REGISTRY_CHANGED_EVENT));
+      }
+    } catch {
+      // Ignore errors
+    }
+    setDeleteId(null);
+  }, []);
+
+  const handleAddQuote = useCallback(async () => {
+    const text = quoteText.trim();
+    if (!text) {
+      setQuoteStatus({ state: "error", message: "Enter a quote." });
+      setTimeout(() => setQuoteStatus({ state: "idle" }), 4000);
+      return;
+    }
+    setQuoteStatus({ state: "loading" });
+    try {
+      const res = await fetch("/api/media", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          items: [{ source: "inline", uri: "", title: text, attribution: quoteSource.trim() || undefined }],
+        }),
+      });
+      const data = (await res.json()) as { items?: unknown[] } | { error?: string };
+      if (!res.ok) {
+        setQuoteStatus({
+          state: "error",
+          message: "error" in data && typeof data.error === "string" ? data.error : "Add failed.",
+        });
+      } else {
+        setQuoteStatus({ state: "ok", count: 1 });
+        setQuoteText("");
+        setQuoteSource("");
+        window.dispatchEvent(new CustomEvent(MEDIA_REGISTRY_CHANGED_EVENT));
+      }
+    } catch {
+      setQuoteStatus({ state: "error", message: "Request failed." });
+    }
+    setTimeout(() => setQuoteStatus({ state: "idle" }), 4000);
+  }, [quoteText, quoteSource]);
+
   return (
-    <main className="min-h-screen bg-[var(--bg)] p-6 text-[var(--fg)]">
+    <main className="min-h-screen bg-neutral-950 p-6 text-neutral-100">
       <div className="mx-auto max-w-lg">
         <h1 className="mb-6 text-xl font-medium">Settings</h1>
         <div className="space-y-4">
           <div>
-            <label
-              htmlFor="todoFilePath"
-              className="mb-1 block text-sm text-[var(--muted)]"
-            >
+            <label htmlFor="todoFilePath" className="mb-1 block text-sm text-neutral-400">
               TODO file path
             </label>
             <input
               id="todoFilePath"
               type="text"
               value={settings.todoFilePath}
-              onChange={(e) =>
-                setSettings((s) => ({ ...s, todoFilePath: e.target.value }))
-              }
+              onChange={(e) => setSettings((s) => ({ ...s, todoFilePath: e.target.value }))}
               placeholder="/data/TO-DO.md"
-              className="w-full rounded border border-[#262626] bg-[#0f0f0f] px-3 py-2 text-sm"
-              aria-describedby="todoFilePathHelp"
+              className="w-full rounded border border-neutral-800 bg-neutral-900 px-3 py-2 text-sm"
             />
-            <p id="todoFilePathHelp" className="mt-1 text-xs text-[var(--muted)]">
-              Absolute path to your markdown checklist file (e.g. in Docker:
-              /data/TO-DO.md).
+            <p className="mt-1 text-xs text-neutral-500">
+              Absolute path to your markdown checklist file.
             </p>
           </div>
           <div>
-            <label
-              htmlFor="rotationMode"
-              className="mb-1 block text-sm text-[var(--muted)]"
-            >
+            <label htmlFor="rotationMode" className="mb-1 block text-sm text-neutral-400">
               Media rotation
             </label>
             <select
@@ -223,8 +279,7 @@ export default function SettingsPage() {
                   rotationMode: e.target.value as RotationMode,
                 }))
               }
-              className="w-full rounded border border-[#262626] bg-[#0f0f0f] px-3 py-2 text-sm"
-              aria-describedby="rotationModeHelp"
+              className="w-full rounded border border-neutral-800 bg-neutral-900 px-3 py-2 text-sm"
             >
               {ROTATION_MODES.map((v) => (
                 <option key={v.value} value={v.value}>
@@ -232,44 +287,9 @@ export default function SettingsPage() {
                 </option>
               ))}
             </select>
-            <p id="rotationModeHelp" className="mt-1 text-xs text-[var(--muted)]">
-              Random: pick next item at random. Playlist: advance in order; Prev goes back.
-            </p>
           </div>
           <div>
-            <label
-              htmlFor="designVariant"
-              className="mb-1 block text-sm text-[var(--muted)]"
-            >
-              Design variant
-            </label>
-            <select
-              id="designVariant"
-              value={settings.designVariant}
-              onChange={(e) =>
-                setSettings((s) => ({
-                  ...s,
-                  designVariant: e.target.value as DesignVariant,
-                }))
-              }
-              className="w-full rounded border border-[#262626] bg-[#0f0f0f] px-3 py-2 text-sm"
-              aria-describedby="designVariantHelp"
-            >
-              {DESIGN_VARIANTS.map((v) => (
-                <option key={v.value} value={v.value}>
-                  {v.label}
-                </option>
-              ))}
-            </select>
-            <p id="designVariantHelp" className="mt-1 text-xs text-[var(--muted)]">
-              Void Minimal: subdued panel bottom-left. Glass Ambient: frosted panel bottom-right.
-            </p>
-          </div>
-          <div>
-            <label
-              htmlFor="prefetchConcurrency"
-              className="mb-1 block text-sm text-[var(--muted)]"
-            >
+            <label htmlFor="prefetchConcurrency" className="mb-1 block text-sm text-neutral-400">
               Prefetch concurrency
             </label>
             <input
@@ -284,18 +304,11 @@ export default function SettingsPage() {
                   setSettings((s) => ({ ...s, prefetchConcurrency: v }));
                 }
               }}
-              className="w-20 rounded border border-[#262626] bg-[#0f0f0f] px-3 py-2 text-sm"
-              aria-describedby="prefetchConcurrencyHelp"
+              className="w-20 rounded border border-neutral-800 bg-neutral-900 px-3 py-2 text-sm"
             />
-            <p id="prefetchConcurrencyHelp" className="mt-1 text-xs text-[var(--muted)]">
-              How many media items to prefetch ahead (1–4). Default 2.
-            </p>
           </div>
           <div>
-            <label
-              htmlFor="remoteCacheLimitMb"
-              className="mb-1 block text-sm text-[var(--muted)]"
-            >
+            <label htmlFor="remoteCacheLimitMb" className="mb-1 block text-sm text-neutral-400">
               Remote cache limit (MB)
             </label>
             <input
@@ -310,50 +323,65 @@ export default function SettingsPage() {
                   setSettings((s) => ({ ...s, remoteCacheLimitMb: v }));
                 }
               }}
-              className="w-24 rounded border border-[#262626] bg-[#0f0f0f] px-3 py-2 text-sm"
-              aria-describedby="remoteCacheLimitMbHelp"
+              className="w-24 rounded border border-neutral-800 bg-neutral-900 px-3 py-2 text-sm"
             />
-            <p id="remoteCacheLimitMbHelp" className="mt-1 text-xs text-[var(--muted)]">
-              Max size for remote media cache in MB (256–4096). Default 2048.
-            </p>
           </div>
           <div>
             <label className="flex cursor-pointer items-center gap-2">
               <input
                 type="checkbox"
                 checked={settings.showCompleted}
-                onChange={(e) =>
-                  setSettings((s) => ({ ...s, showCompleted: e.target.checked }))
-                }
-                className="rounded border-[#404040]"
+                onChange={(e) => setSettings((s) => ({ ...s, showCompleted: e.target.checked }))}
+                className="rounded border-neutral-600"
               />
-              <span className="text-sm text-[var(--fg)]">
-                Show completed tasks
-              </span>
+              <span className="text-sm">Show completed tasks</span>
             </label>
-            <p className="mt-1 text-xs text-[var(--muted)]">
-              When unchecked, completed items are hidden in the TODO panel.
-            </p>
           </div>
           <div className="flex items-center gap-3">
             <button
               type="button"
               onClick={handleSave}
-              className="rounded bg-[#262626] px-4 py-2 text-sm hover:bg-[#333]"
+              className="rounded bg-neutral-800 px-4 py-2 text-sm hover:bg-neutral-700"
             >
               Save
             </button>
-            {saved && (
-              <span className="text-sm text-[var(--muted)]">Saved.</span>
+            {saved && <span className="text-sm text-neutral-400">Saved.</span>}
+          </div>
+
+          <div className="border-t border-neutral-800 pt-4">
+            <h2 className="mb-2 text-sm font-medium">Media Library</h2>
+            {mediaLoading ? (
+              <p className="text-xs text-neutral-500">Loading...</p>
+            ) : mediaItems.length === 0 ? (
+              <p className="text-xs text-neutral-500">No media items. Add some below.</p>
+            ) : (
+              <ul className="max-h-64 space-y-2 overflow-y-auto">
+                {mediaItems.map((item) => (
+                  <li key={item.id} className="flex items-center gap-2 rounded border border-neutral-800 bg-neutral-900/50 px-3 py-2">
+                    <span className="shrink-0 rounded bg-neutral-700 px-1.5 py-0.5 text-[10px] uppercase">
+                      {item.type}
+                    </span>
+                    <span className="flex-1 truncate text-xs text-neutral-300">
+                      {item.type === "quote" ? (item.title ?? "—") : item.uri.split("/").pop() ?? item.uri}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteMedia(item.id)}
+                      disabled={deleteId === item.id}
+                      className="shrink-0 rounded px-2 py-1 text-xs text-red-400 hover:bg-red-900/30 disabled:opacity-50"
+                    >
+                      {deleteId === item.id ? "..." : "Remove"}
+                    </button>
+                  </li>
+                ))}
+              </ul>
             )}
           </div>
-          <div className="border-t border-[#262626] pt-4">
-            <h2 className="mb-2 text-sm font-medium text-[var(--fg)]">
-              Add media
-            </h2>
-            <p className="mb-2 text-xs text-[var(--muted)]">
-              Upload files (images, GIFs, videos) or add a remote URL. Supported:
-              jpg, png, gif, webp, avif, svg, mp4, webm, ogg, mov.
+
+          <div className="border-t border-neutral-800 pt-4">
+            <h2 className="mb-2 text-sm font-medium">Add media</h2>
+            <p className="mb-2 text-xs text-neutral-500">
+              Upload files or add a remote URL.
             </p>
             <div className="mb-4 flex flex-wrap items-center gap-2">
               <input
@@ -361,14 +389,13 @@ export default function SettingsPage() {
                 type="file"
                 multiple
                 accept=".jpg,.jpeg,.png,.gif,.webp,.avif,.svg,.mp4,.webm,.ogg,.mov"
-                className="text-sm text-[var(--muted)] file:mr-2 file:rounded file:border-0 file:bg-[#262626] file:px-3 file:py-1.5 file:text-sm file:text-[var(--fg)]"
-                aria-label="Select files to upload"
+                className="text-sm text-neutral-400 file:mr-2 file:rounded file:border-0 file:bg-neutral-800 file:px-3 file:py-1.5 file:text-sm file:text-neutral-100"
               />
               <button
                 type="button"
                 onClick={handleUploadFiles}
                 disabled={mediaImportStatus.state === "loading"}
-                className="rounded bg-[#262626] px-4 py-2 text-sm hover:bg-[#333] disabled:opacity-50"
+                className="rounded bg-neutral-800 px-4 py-2 text-sm hover:bg-neutral-700 disabled:opacity-50"
               >
                 Upload
               </button>
@@ -379,58 +406,88 @@ export default function SettingsPage() {
                 value={remoteUrl}
                 onChange={(e) => setRemoteUrl(e.target.value)}
                 placeholder="https://example.com/image.jpg"
-                className="min-w-[200px] flex-1 rounded border border-[#262626] bg-[#0f0f0f] px-3 py-2 text-sm"
-                aria-label="Remote media URL"
+                className="min-w-[200px] flex-1 rounded border border-neutral-800 bg-neutral-900 px-3 py-2 text-sm"
               />
               <button
                 type="button"
                 onClick={handleAddByUrl}
                 disabled={mediaImportStatus.state === "loading"}
-                className="rounded bg-[#262626] px-4 py-2 text-sm hover:bg-[#333] disabled:opacity-50"
+                className="rounded bg-neutral-800 px-4 py-2 text-sm hover:bg-neutral-700 disabled:opacity-50"
               >
                 Add URL
               </button>
             </div>
             {mediaImportStatus.state === "ok" && (
-              <p className="text-sm text-[var(--muted)]">
-                Added {mediaImportStatus.count} item
-                {mediaImportStatus.count !== 1 ? "s" : ""}.
+              <p className="text-sm text-neutral-400">
+                Added {mediaImportStatus.count} item{mediaImportStatus.count !== 1 ? "s" : ""}.
               </p>
             )}
             {mediaImportStatus.state === "error" && (
-              <p className="text-sm text-red-400" role="alert">
-                {mediaImportStatus.message}
-              </p>
+              <p className="text-sm text-red-400" role="alert">{mediaImportStatus.message}</p>
             )}
           </div>
-          <div className="border-t border-[#262626] pt-4">
-            <h2 className="mb-2 text-sm font-medium text-[var(--fg)]">
-              Checkpoint (Git commit)
-            </h2>
-            <p className="mb-2 text-xs text-[var(--muted)]">
-              Attempt a git commit for the TODO file path above. Only works when
-              the path is inside a git repo.
-            </p>
+
+          <div className="border-t border-neutral-800 pt-4">
+            <h2 className="mb-2 text-sm font-medium">Add quote</h2>
+            <div className="mb-3">
+              <label htmlFor="quoteText" className="mb-1 block text-xs text-neutral-400">
+                Quote
+              </label>
+              <textarea
+                id="quoteText"
+                value={quoteText}
+                onChange={(e) => setQuoteText(e.target.value)}
+                placeholder="The only way to do great work is to love what you do."
+                rows={2}
+                className="w-full rounded border border-neutral-800 bg-neutral-900 px-3 py-2 text-sm"
+              />
+            </div>
+            <div className="mb-3">
+              <label htmlFor="quoteSource" className="mb-1 block text-xs text-neutral-400">
+                Source (optional)
+              </label>
+              <input
+                id="quoteSource"
+                type="text"
+                value={quoteSource}
+                onChange={(e) => setQuoteSource(e.target.value)}
+                placeholder="Steve Jobs"
+                className="w-full rounded border border-neutral-800 bg-neutral-900 px-3 py-2 text-sm"
+              />
+            </div>
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={handleAddQuote}
+                disabled={quoteStatus.state === "loading"}
+                className="rounded bg-neutral-800 px-4 py-2 text-sm hover:bg-neutral-700 disabled:opacity-50"
+              >
+                {quoteStatus.state === "loading" ? "Adding..." : "Add Quote"}
+              </button>
+              {quoteStatus.state === "ok" && (
+                <span className="text-sm text-neutral-400">Quote added.</span>
+              )}
+              {quoteStatus.state === "error" && (
+                <span className="text-sm text-red-400">{quoteStatus.message}</span>
+              )}
+            </div>
+          </div>
+
+          <div className="border-t border-neutral-800 pt-4">
+            <h2 className="mb-2 text-sm font-medium">Checkpoint (Git commit)</h2>
             <div className="mb-4 flex flex-col gap-2">
               <label className="flex cursor-pointer items-center gap-2">
                 <input
                   type="checkbox"
                   checked={settings.autoCheckpoint}
-                  onChange={(e) =>
-                    setSettings((s) => ({ ...s, autoCheckpoint: e.target.checked }))
-                  }
-                  className="rounded border-[#404040]"
+                  onChange={(e) => setSettings((s) => ({ ...s, autoCheckpoint: e.target.checked }))}
+                  className="rounded border-neutral-600"
                 />
-                <span className="text-sm text-[var(--fg)]">
-                  Auto-checkpoint (debounced after edits)
-                </span>
+                <span className="text-sm">Auto-checkpoint (debounced)</span>
               </label>
               {settings.autoCheckpoint && (
                 <div className="flex items-center gap-2">
-                  <label
-                    htmlFor="checkpointDebounceSec"
-                    className="text-xs text-[var(--muted)]"
-                  >
+                  <label htmlFor="checkpointDebounceSec" className="text-xs text-neutral-400">
                     Debounce (seconds)
                   </label>
                   <input
@@ -445,7 +502,7 @@ export default function SettingsPage() {
                         setSettings((s) => ({ ...s, checkpointDebounceSec: v }));
                       }
                     }}
-                    className="w-16 rounded border border-[#262626] bg-[#0f0f0f] px-2 py-1 text-sm"
+                    className="w-16 rounded border border-neutral-800 bg-neutral-900 px-2 py-1 text-sm"
                   />
                 </div>
               )}
@@ -455,31 +512,22 @@ export default function SettingsPage() {
                 type="button"
                 onClick={handleCheckpoint}
                 disabled={checkpointStatus.state === "loading"}
-                className="rounded bg-[#262626] px-4 py-2 text-sm hover:bg-[#333] disabled:opacity-50"
+                className="rounded bg-neutral-800 px-4 py-2 text-sm hover:bg-neutral-700 disabled:opacity-50"
               >
-                {checkpointStatus.state === "loading"
-                  ? "Checkpointing…"
-                  : "Checkpoint"}
+                {checkpointStatus.state === "loading" ? "Checkpointing…" : "Checkpoint"}
               </button>
               {checkpointStatus.state === "ok" && (
-                <span className="text-sm text-[var(--muted)]">
-                  {checkpointStatus.message}
-                </span>
+                <span className="text-sm text-neutral-400">{checkpointStatus.message}</span>
               )}
               {checkpointStatus.state === "unsupported" && (
-                <span className="text-sm text-[var(--muted)]">
-                  {checkpointStatus.reason}
-                </span>
+                <span className="text-sm text-neutral-400">{checkpointStatus.reason}</span>
               )}
             </div>
           </div>
         </div>
         <p className="mt-8">
-          <Link
-            href="/"
-            className="text-sm text-[var(--muted)] underline hover:text-[var(--fg)]"
-          >
-            ← Back to Idle Page
+          <Link href="/" className="text-sm text-neutral-400 underline hover:text-neutral-100">
+            &larr; Back
           </Link>
         </p>
       </div>
