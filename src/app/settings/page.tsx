@@ -28,6 +28,17 @@ type MediaImportStatus =
   | { state: "ok"; count: number }
   | { state: "error"; message: string };
 
+function FilmGrain() {
+  return (
+    <div
+      className="pointer-events-none absolute inset-0 z-30 mix-blend-overlay opacity-[0.06]"
+      style={{
+        backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.2' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`,
+      }}
+    />
+  );
+}
+
 export default function SettingsPage() {
   const [settings, setSettings] = useState<Settings>(() => loadSettings());
   const [saved, setSaved] = useState(false);
@@ -246,12 +257,22 @@ export default function SettingsPage() {
   }, [quoteText, quoteSource]);
 
   return (
-    <main className="min-h-screen bg-neutral-950 p-6 text-neutral-100">
-      <div className="mx-auto max-w-lg">
-        <h1 className="mb-6 text-xl font-medium">Settings</h1>
+    <main className="relative min-h-screen p-6">
+      <FilmGrain />
+
+      <div className="pointer-events-none absolute -right-20 -top-20 h-[500px] w-[500px] rounded-full bg-red-700/[0.25] blur-[180px]" />
+      <div className="pointer-events-none absolute -bottom-32 left-1/4 h-[400px] w-[400px] rounded-full bg-red-600/[0.18] blur-[150px]" />
+
+      <div
+        className="pointer-events-none absolute inset-0 z-20"
+        style={{ background: "radial-gradient(ellipse at center, transparent 50%, rgba(28,14,14,0.35) 100%)" }}
+      />
+
+      <div className="relative z-10 mx-auto max-w-lg">
+        <h1 className="mb-6 text-xl font-medium text-red-200/90">Settings</h1>
         <div className="space-y-4">
           <div>
-            <label htmlFor="todoFilePath" className="mb-1 block text-sm text-neutral-400">
+            <label htmlFor="todoFilePath" className="mb-1 block text-sm text-red-500/60">
               TODO file path
             </label>
             <input
@@ -260,14 +281,14 @@ export default function SettingsPage() {
               value={settings.todoFilePath}
               onChange={(e) => setSettings((s) => ({ ...s, todoFilePath: e.target.value }))}
               placeholder="/data/TO-DO.md"
-              className="w-full rounded border border-neutral-800 bg-neutral-900 px-3 py-2 text-sm"
+              className="w-full rounded border border-red-900/30 bg-[#241414]/60 px-3 py-2 text-sm text-red-200/70 outline-none placeholder:text-red-950/40 focus:border-red-700/40"
             />
-            <p className="mt-1 text-xs text-neutral-500">
+            <p className="mt-1 text-xs text-red-900/50">
               Absolute path to your markdown checklist file.
             </p>
           </div>
           <div>
-            <label htmlFor="rotationMode" className="mb-1 block text-sm text-neutral-400">
+            <label htmlFor="rotationMode" className="mb-1 block text-sm text-red-500/60">
               Media rotation
             </label>
             <select
@@ -279,7 +300,7 @@ export default function SettingsPage() {
                   rotationMode: e.target.value as RotationMode,
                 }))
               }
-              className="w-full rounded border border-neutral-800 bg-neutral-900 px-3 py-2 text-sm"
+              className="w-full rounded border border-red-900/30 bg-[#241414]/60 px-3 py-2 text-sm text-red-200/70 outline-none focus:border-red-700/40"
             >
               {ROTATION_MODES.map((v) => (
                 <option key={v.value} value={v.value}>
@@ -289,7 +310,7 @@ export default function SettingsPage() {
             </select>
           </div>
           <div>
-            <label htmlFor="prefetchConcurrency" className="mb-1 block text-sm text-neutral-400">
+            <label htmlFor="prefetchConcurrency" className="mb-1 block text-sm text-red-500/60">
               Prefetch concurrency
             </label>
             <input
@@ -304,11 +325,11 @@ export default function SettingsPage() {
                   setSettings((s) => ({ ...s, prefetchConcurrency: v }));
                 }
               }}
-              className="w-20 rounded border border-neutral-800 bg-neutral-900 px-3 py-2 text-sm"
+              className="w-20 rounded border border-red-900/30 bg-[#241414]/60 px-3 py-2 text-sm text-red-200/70 outline-none focus:border-red-700/40"
             />
           </div>
           <div>
-            <label htmlFor="remoteCacheLimitMb" className="mb-1 block text-sm text-neutral-400">
+            <label htmlFor="remoteCacheLimitMb" className="mb-1 block text-sm text-red-500/60">
               Remote cache limit (MB)
             </label>
             <input
@@ -323,7 +344,7 @@ export default function SettingsPage() {
                   setSettings((s) => ({ ...s, remoteCacheLimitMb: v }));
                 }
               }}
-              className="w-24 rounded border border-neutral-800 bg-neutral-900 px-3 py-2 text-sm"
+              className="w-24 rounded border border-red-900/30 bg-[#241414]/60 px-3 py-2 text-sm text-red-200/70 outline-none focus:border-red-700/40"
             />
           </div>
           <div>
@@ -332,43 +353,43 @@ export default function SettingsPage() {
                 type="checkbox"
                 checked={settings.showCompleted}
                 onChange={(e) => setSettings((s) => ({ ...s, showCompleted: e.target.checked }))}
-                className="rounded border-neutral-600"
+                className="rounded border-red-800/50 bg-[#241414]/60"
               />
-              <span className="text-sm">Show completed tasks</span>
+              <span className="text-sm text-red-200/70">Show completed tasks</span>
             </label>
           </div>
           <div className="flex items-center gap-3">
             <button
               type="button"
               onClick={handleSave}
-              className="rounded bg-neutral-800 px-4 py-2 text-sm hover:bg-neutral-700"
+              className="rounded bg-red-900/30 px-4 py-2 text-sm text-red-300/80 transition-colors hover:bg-red-800/40"
             >
               Save
             </button>
-            {saved && <span className="text-sm text-neutral-400">Saved.</span>}
+            {saved && <span className="text-sm text-red-500/60">Saved.</span>}
           </div>
 
-          <div className="border-t border-neutral-800 pt-4">
-            <h2 className="mb-2 text-sm font-medium">Media Library</h2>
+          <div className="border-t border-red-950/30 pt-4">
+            <h2 className="mb-2 text-sm font-medium text-red-300/80">Media Library</h2>
             {mediaLoading ? (
-              <p className="text-xs text-neutral-500">Loading...</p>
+              <p className="text-xs text-red-900/50">Loading...</p>
             ) : mediaItems.length === 0 ? (
-              <p className="text-xs text-neutral-500">No media items. Add some below.</p>
+              <p className="text-xs text-red-900/50">No media items. Add some below.</p>
             ) : (
               <ul className="max-h-64 space-y-2 overflow-y-auto">
                 {mediaItems.map((item) => (
-                  <li key={item.id} className="flex items-center gap-2 rounded border border-neutral-800 bg-neutral-900/50 px-3 py-2">
-                    <span className="shrink-0 rounded bg-neutral-700 px-1.5 py-0.5 text-[10px] uppercase">
+                  <li key={item.id} className="flex items-center gap-2 rounded border border-red-900/20 bg-[#241414]/40 px-3 py-2">
+                    <span className="shrink-0 rounded bg-red-900/40 px-1.5 py-0.5 text-[10px] uppercase text-red-400">
                       {item.type}
                     </span>
-                    <span className="flex-1 truncate text-xs text-neutral-300">
+                    <span className="flex-1 truncate text-xs text-red-200/60">
                       {item.type === "quote" ? (item.title ?? "—") : item.uri.split("/").pop() ?? item.uri}
                     </span>
                     <button
                       type="button"
                       onClick={() => handleDeleteMedia(item.id)}
                       disabled={deleteId === item.id}
-                      className="shrink-0 rounded px-2 py-1 text-xs text-red-400 hover:bg-red-900/30 disabled:opacity-50"
+                      className="shrink-0 rounded px-2 py-1 text-xs text-red-500/60 hover:bg-red-900/30 hover:text-red-400 disabled:opacity-50"
                     >
                       {deleteId === item.id ? "..." : "Remove"}
                     </button>
@@ -378,9 +399,9 @@ export default function SettingsPage() {
             )}
           </div>
 
-          <div className="border-t border-neutral-800 pt-4">
-            <h2 className="mb-2 text-sm font-medium">Add media</h2>
-            <p className="mb-2 text-xs text-neutral-500">
+          <div className="border-t border-red-950/30 pt-4">
+            <h2 className="mb-2 text-sm font-medium text-red-300/80">Add media</h2>
+            <p className="mb-2 text-xs text-red-900/50">
               Upload files or add a remote URL.
             </p>
             <div className="mb-4 flex flex-wrap items-center gap-2">
@@ -389,13 +410,13 @@ export default function SettingsPage() {
                 type="file"
                 multiple
                 accept=".jpg,.jpeg,.png,.gif,.webp,.avif,.svg,.mp4,.webm,.ogg,.mov"
-                className="text-sm text-neutral-400 file:mr-2 file:rounded file:border-0 file:bg-neutral-800 file:px-3 file:py-1.5 file:text-sm file:text-neutral-100"
+                className="text-sm text-red-400 file:mr-2 file:rounded file:border-0 file:bg-red-900/30 file:px-3 file:py-1.5 file:text-sm file:text-red-300/80"
               />
               <button
                 type="button"
                 onClick={handleUploadFiles}
                 disabled={mediaImportStatus.state === "loading"}
-                className="rounded bg-neutral-800 px-4 py-2 text-sm hover:bg-neutral-700 disabled:opacity-50"
+                className="rounded bg-red-900/30 px-4 py-2 text-sm text-red-300/80 transition-colors hover:bg-red-800/40 disabled:opacity-50"
               >
                 Upload
               </button>
@@ -406,31 +427,31 @@ export default function SettingsPage() {
                 value={remoteUrl}
                 onChange={(e) => setRemoteUrl(e.target.value)}
                 placeholder="https://example.com/image.jpg"
-                className="min-w-[200px] flex-1 rounded border border-neutral-800 bg-neutral-900 px-3 py-2 text-sm"
+                className="min-w-[200px] flex-1 rounded border border-red-900/30 bg-[#241414]/60 px-3 py-2 text-sm text-red-200/70 outline-none placeholder:text-red-950/40 focus:border-red-700/40"
               />
               <button
                 type="button"
                 onClick={handleAddByUrl}
                 disabled={mediaImportStatus.state === "loading"}
-                className="rounded bg-neutral-800 px-4 py-2 text-sm hover:bg-neutral-700 disabled:opacity-50"
+                className="rounded bg-red-900/30 px-4 py-2 text-sm text-red-300/80 transition-colors hover:bg-red-800/40 disabled:opacity-50"
               >
                 Add URL
               </button>
             </div>
             {mediaImportStatus.state === "ok" && (
-              <p className="text-sm text-neutral-400">
+              <p className="text-sm text-red-500/60">
                 Added {mediaImportStatus.count} item{mediaImportStatus.count !== 1 ? "s" : ""}.
               </p>
             )}
             {mediaImportStatus.state === "error" && (
-              <p className="text-sm text-red-400" role="alert">{mediaImportStatus.message}</p>
+              <p className="text-sm text-red-500/80" role="alert">{mediaImportStatus.message}</p>
             )}
           </div>
 
-          <div className="border-t border-neutral-800 pt-4">
-            <h2 className="mb-2 text-sm font-medium">Add quote</h2>
+          <div className="border-t border-red-950/30 pt-4">
+            <h2 className="mb-2 text-sm font-medium text-red-300/80">Add quote</h2>
             <div className="mb-3">
-              <label htmlFor="quoteText" className="mb-1 block text-xs text-neutral-400">
+              <label htmlFor="quoteText" className="mb-1 block text-xs text-red-500/60">
                 Quote
               </label>
               <textarea
@@ -439,11 +460,11 @@ export default function SettingsPage() {
                 onChange={(e) => setQuoteText(e.target.value)}
                 placeholder="The only way to do great work is to love what you do."
                 rows={2}
-                className="w-full rounded border border-neutral-800 bg-neutral-900 px-3 py-2 text-sm"
+                className="w-full rounded border border-red-900/30 bg-[#241414]/60 px-3 py-2 text-sm text-red-200/70 outline-none placeholder:text-red-950/40 focus:border-red-700/40"
               />
             </div>
             <div className="mb-3">
-              <label htmlFor="quoteSource" className="mb-1 block text-xs text-neutral-400">
+              <label htmlFor="quoteSource" className="mb-1 block text-xs text-red-500/60">
                 Source (optional)
               </label>
               <input
@@ -452,7 +473,7 @@ export default function SettingsPage() {
                 value={quoteSource}
                 onChange={(e) => setQuoteSource(e.target.value)}
                 placeholder="Steve Jobs"
-                className="w-full rounded border border-neutral-800 bg-neutral-900 px-3 py-2 text-sm"
+                className="w-full rounded border border-red-900/30 bg-[#241414]/60 px-3 py-2 text-sm text-red-200/70 outline-none placeholder:text-red-950/40 focus:border-red-700/40"
               />
             </div>
             <div className="flex items-center gap-3">
@@ -460,34 +481,34 @@ export default function SettingsPage() {
                 type="button"
                 onClick={handleAddQuote}
                 disabled={quoteStatus.state === "loading"}
-                className="rounded bg-neutral-800 px-4 py-2 text-sm hover:bg-neutral-700 disabled:opacity-50"
+                className="rounded bg-red-900/30 px-4 py-2 text-sm text-red-300/80 transition-colors hover:bg-red-800/40 disabled:opacity-50"
               >
                 {quoteStatus.state === "loading" ? "Adding..." : "Add Quote"}
               </button>
               {quoteStatus.state === "ok" && (
-                <span className="text-sm text-neutral-400">Quote added.</span>
+                <span className="text-sm text-red-500/60">Quote added.</span>
               )}
               {quoteStatus.state === "error" && (
-                <span className="text-sm text-red-400">{quoteStatus.message}</span>
+                <span className="text-sm text-red-500/80">{quoteStatus.message}</span>
               )}
             </div>
           </div>
 
-          <div className="border-t border-neutral-800 pt-4">
-            <h2 className="mb-2 text-sm font-medium">Checkpoint (Git commit)</h2>
+          <div className="border-t border-red-950/30 pt-4">
+            <h2 className="mb-2 text-sm font-medium text-red-300/80">Checkpoint (Git commit)</h2>
             <div className="mb-4 flex flex-col gap-2">
               <label className="flex cursor-pointer items-center gap-2">
                 <input
                   type="checkbox"
                   checked={settings.autoCheckpoint}
                   onChange={(e) => setSettings((s) => ({ ...s, autoCheckpoint: e.target.checked }))}
-                  className="rounded border-neutral-600"
+                  className="rounded border-red-800/50 bg-[#241414]/60"
                 />
-                <span className="text-sm">Auto-checkpoint (debounced)</span>
+                <span className="text-sm text-red-200/70">Auto-checkpoint (debounced)</span>
               </label>
               {settings.autoCheckpoint && (
                 <div className="flex items-center gap-2">
-                  <label htmlFor="checkpointDebounceSec" className="text-xs text-neutral-400">
+                  <label htmlFor="checkpointDebounceSec" className="text-xs text-red-500/60">
                     Debounce (seconds)
                   </label>
                   <input
@@ -502,7 +523,7 @@ export default function SettingsPage() {
                         setSettings((s) => ({ ...s, checkpointDebounceSec: v }));
                       }
                     }}
-                    className="w-16 rounded border border-neutral-800 bg-neutral-900 px-2 py-1 text-sm"
+                    className="w-16 rounded border border-red-900/30 bg-[#241414]/60 px-2 py-1 text-sm text-red-200/70 outline-none focus:border-red-700/40"
                   />
                 </div>
               )}
@@ -512,21 +533,21 @@ export default function SettingsPage() {
                 type="button"
                 onClick={handleCheckpoint}
                 disabled={checkpointStatus.state === "loading"}
-                className="rounded bg-neutral-800 px-4 py-2 text-sm hover:bg-neutral-700 disabled:opacity-50"
+                className="rounded bg-red-900/30 px-4 py-2 text-sm text-red-300/80 transition-colors hover:bg-red-800/40 disabled:opacity-50"
               >
                 {checkpointStatus.state === "loading" ? "Checkpointing…" : "Checkpoint"}
               </button>
               {checkpointStatus.state === "ok" && (
-                <span className="text-sm text-neutral-400">{checkpointStatus.message}</span>
+                <span className="text-sm text-red-500/60">{checkpointStatus.message}</span>
               )}
               {checkpointStatus.state === "unsupported" && (
-                <span className="text-sm text-neutral-400">{checkpointStatus.reason}</span>
+                <span className="text-sm text-red-900/50">{checkpointStatus.reason}</span>
               )}
             </div>
           </div>
         </div>
         <p className="mt-8">
-          <Link href="/" className="text-sm text-neutral-400 underline hover:text-neutral-100">
+          <Link href="/" className="text-sm text-red-500/50 underline hover:text-red-400">
             &larr; Back
           </Link>
         </p>

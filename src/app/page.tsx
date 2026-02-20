@@ -1,113 +1,174 @@
 "use client";
 
 import Link from "next/link";
+import { useTodos } from "@/hooks/useTodos";
+import { useMedia } from "@/hooks/useMedia";
+import { MediaRenderer } from "@/components/MediaRenderer";
+import type { Task } from "@/types/task";
 
-const VARIANTS = [
-  {
-    id: 1,
-    name: "Cosmos",
-    description: "Deep space, floating elements, starfield",
-    gradient: "from-[#020014] via-[#0a0025] to-[#050020]",
-    accent: "text-indigo-400",
-  },
-  {
-    id: 2,
-    name: "Terminal",
-    description: "Retro CRT, green phosphor, monospace",
-    gradient: "from-[#0a0a0a] via-[#0a0f0a] to-[#0a0a0a]",
-    accent: "text-green-400",
-  },
-  {
-    id: 3,
-    name: "Darkroom",
-    description: "Photography safe-light, film grain, red wash",
-    gradient: "from-[#0c0404] via-[#120606] to-[#0c0404]",
-    accent: "text-red-500",
-  },
-  {
-    id: 4,
-    name: "Isometric",
-    description: "Geometric 3D grid, bold angles, coral & teal",
-    gradient: "from-[#f8f6f1] via-[#f0ece4] to-[#f8f6f1]",
-    accent: "text-[#e87461]",
-  },
-  {
-    id: 5,
-    name: "Zen Garden",
-    description: "Japanese minimalism, sand, stone, moss",
-    gradient: "from-[#eee8dc] via-[#e6e0d4] to-[#eee8dc]",
-    accent: "text-[#7c8c6e]",
-  },
-  {
-    id: 6,
-    name: "Polaroid",
-    description: "Instant photo frames, warm nostalgic tones",
-    gradient: "from-[#f4ede4] via-[#efe6da] to-[#f4ede4]",
-    accent: "text-amber-500",
-  },
-  {
-    id: 7,
-    name: "Blueprint",
-    description: "Technical schematic, blue grid, engineering",
-    gradient: "from-[#1a2a40] via-[#1e3050] to-[#1a2a40]",
-    accent: "text-[#7ab0e0]",
-  },
-  {
-    id: 8,
-    name: "Vinyl",
-    description: "Record store warmth, amber glow, retro audio",
-    gradient: "from-[#1a1410] via-[#201a14] to-[#1a1410]",
-    accent: "text-amber-500",
-  },
-  {
-    id: 9,
-    name: "Topographic",
-    description: "Contour lines, terrain palette, field notes",
-    gradient: "from-[#e8e0d0] via-[#e0d8c8] to-[#e8e0d0]",
-    accent: "text-[#7a9a6a]",
-  },
-];
-
-export default function IndexPage() {
+function FilmGrain() {
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center bg-neutral-950 px-6 py-16">
-      <h1 className="mb-2 text-3xl font-light tracking-tight text-neutral-100">Idle Page</h1>
-      <p className="mb-12 text-sm text-neutral-500">Choose your experience</p>
+    <div
+      className="pointer-events-none absolute inset-0 z-30 mix-blend-overlay opacity-[0.06]"
+      style={{
+        backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.2' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`,
+      }}
+    />
+  );
+}
 
-      <div className="grid w-full max-w-5xl grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-        {VARIANTS.map((v) => (
-          <Link
-            key={v.id}
-            href={`/${v.id}`}
-            className="group relative flex flex-col overflow-hidden rounded-2xl border border-neutral-800 transition-all hover:border-neutral-600 hover:shadow-lg hover:shadow-neutral-900/50"
-          >
-            <div className={`h-24 bg-gradient-to-br ${v.gradient}`} />
-            <div className="flex flex-1 flex-col justify-between bg-neutral-900 p-4">
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className={`text-lg font-semibold ${v.accent}`}>{v.id}</span>
-                  <h2 className="text-sm font-medium text-neutral-200">{v.name}</h2>
-                </div>
-                <p className="mt-1 text-[11px] leading-relaxed text-neutral-500">{v.description}</p>
-              </div>
-              <span className="mt-3 text-[10px] font-medium uppercase tracking-widest text-neutral-600 transition-colors group-hover:text-neutral-400">
-                Launch &rarr;
-              </span>
-            </div>
-          </Link>
-        ))}
+function TaskItem({ task, todo }: { task: Task; todo: ReturnType<typeof useTodos> }) {
+  const idx = todo.indexInFullList(task);
+  const isEditing = todo.editingId === task.id && !todo.readOnly;
 
-        <Link
-          href="/settings"
-          className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-neutral-800 p-6 text-neutral-600 transition-colors hover:border-neutral-600 hover:text-neutral-400"
+  return (
+    <li className="group border-b border-red-950/40 last:border-b-0">
+      <div className="flex items-center gap-3 px-1 py-2">
+        <button
+          type="button"
+          onClick={() => todo.handleToggle(task)}
+          disabled={todo.readOnly}
+          className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-sm border transition-colors ${
+            task.checked
+              ? "border-red-700/80 bg-red-800/40 text-red-300"
+              : "border-red-900/50 hover:border-red-700/60"
+          } disabled:cursor-not-allowed disabled:opacity-40`}
         >
-          <svg className="mb-2 h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 0 1 1.37.49l1.296 2.247a1.125 1.125 0 0 1-.26 1.431l-1.003.827c-.293.241-.438.613-.43.992a7.723 7.723 0 0 1 0 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.955.26 1.43l-1.298 2.247a1.125 1.125 0 0 1-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.47 6.47 0 0 1-.22.128c-.331.183-.581.495-.644.869l-.213 1.281c-.09.543-.56.94-1.11.94h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 0 1-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 0 1-1.369-.49l-1.297-2.247a1.125 1.125 0 0 1 .26-1.431l1.004-.827c.292-.24.437-.613.43-.991a6.932 6.932 0 0 1 0-.255c.007-.38-.138-.751-.43-.992l-1.004-.827a1.125 1.125 0 0 1-.26-1.43l1.297-2.247a1.125 1.125 0 0 1 1.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.086.22-.128.332-.183.582-.495.644-.869l.214-1.28Z" />
-            <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
-          </svg>
-          <span className="text-xs font-medium">Settings</span>
-        </Link>
+          {task.checked && <span className="text-[10px] leading-none">&#10003;</span>}
+        </button>
+
+        {isEditing ? (
+          <div className="flex flex-1 items-center gap-2">
+            <input
+              type="text"
+              value={todo.editText}
+              onChange={(e) => todo.setEditText(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") todo.handleSaveEdit(task.id);
+                if (e.key === "Escape") { todo.setEditingId(null); todo.setEditText(""); }
+              }}
+              className="flex-1 border-b border-red-800/40 bg-transparent px-1 py-0.5 text-sm text-red-200/80 caret-red-500 outline-none"
+              autoFocus
+            />
+            <button onClick={() => todo.handleSaveEdit(task.id)} className="text-[10px] text-red-600 hover:text-red-400">save</button>
+          </div>
+        ) : (
+          <>
+            <span className={`flex-1 text-sm ${task.checked ? "text-red-900/60 line-through" : "text-red-200/70"}`}>
+              {task.text || "(empty)"}
+            </span>
+            <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+              <button onClick={() => todo.moveUp(idx)} disabled={todo.readOnly || !todo.canMoveUp(task)}
+                className="text-[10px] text-red-900/50 hover:text-red-400 disabled:hidden">&#9650;</button>
+              <button onClick={() => todo.moveDown(idx)} disabled={todo.readOnly || !todo.canMoveDown(task)}
+                className="text-[10px] text-red-900/50 hover:text-red-400 disabled:hidden">&#9660;</button>
+              <button onClick={() => todo.startEdit(task)} disabled={todo.readOnly}
+                className="text-[10px] text-red-900/50 hover:text-red-400 disabled:hidden">edit</button>
+              <button onClick={() => todo.handleDelete(task.id)} disabled={todo.readOnly}
+                className="text-[10px] text-red-900/50 hover:text-red-300 disabled:hidden">del</button>
+            </div>
+          </>
+        )}
       </div>
-    </main>
+    </li>
+  );
+}
+
+export default function HomePage() {
+  const todo = useTodos();
+  const media = useMedia();
+
+  return (
+    <div className="relative h-screen w-screen overflow-hidden bg-[#241414]">
+      <FilmGrain />
+
+      <div className="pointer-events-none absolute -right-20 -top-20 h-[500px] w-[500px] rounded-full bg-red-700/[0.25] blur-[180px]" />
+      <div className="pointer-events-none absolute -bottom-32 left-1/4 h-[400px] w-[400px] rounded-full bg-red-600/[0.18] blur-[150px]" />
+
+      <div
+        className="pointer-events-none absolute inset-0 z-20"
+        style={{ background: "radial-gradient(ellipse at center, transparent 50%, rgba(28,14,14,0.25) 100%)" }}
+      />
+
+      <div className="absolute inset-0 z-10 flex items-center justify-center">
+        {media.loading ? (
+          <p className="text-sm text-red-900/50">Loading...</p>
+        ) : (
+          <div className="relative">
+            <div className="absolute -inset-4 rounded-sm border border-red-900/10" />
+            <MediaRenderer
+              item={media.currentItem}
+              onNext={media.goNext}
+              imgClassName="max-h-[72vh] max-w-[60vw] object-contain brightness-[0.92] contrast-[1.05]"
+              videoClassName="max-h-[72vh] max-w-[60vw] object-contain brightness-[0.92] contrast-[1.05]"
+              emptyClassName="text-red-900/40"
+              emptyText="No media loaded"
+              quoteClassName="text-red-300/60"
+            />
+          </div>
+        )}
+      </div>
+
+      <div className="absolute bottom-5 left-1/2 z-30 flex -translate-x-1/2 items-center gap-4 rounded border border-red-900/20 bg-[#241414]/70 px-5 py-2 backdrop-blur-sm">
+        <button onClick={media.goPrev} className="text-xs text-red-800/60 transition-colors hover:text-red-400">
+          &#9664; prev
+        </button>
+        <span className="text-[10px] text-red-950/40">
+          {media.items.length > 0 ? `${(media.currentIndex ?? 0) + 1} / ${media.items.length}` : ""}
+        </span>
+        <button onClick={media.goNext} className="text-xs text-red-800/60 transition-colors hover:text-red-400">
+          next &#9654;
+        </button>
+      </div>
+
+      <aside className="absolute bottom-14 right-5 top-14 z-30 flex w-64 flex-col rounded border border-red-900/15 bg-[#241414]/80 backdrop-blur-md">
+        <div className="flex items-center justify-between border-b border-red-950/30 px-4 py-3">
+          <h2 className="text-[10px] font-medium uppercase tracking-[0.25em] text-red-700/50">Checklist</h2>
+          <Link href="/settings" className="text-[10px] text-red-900/40 hover:text-red-600">settings</Link>
+        </div>
+
+        <div className="flex-1 overflow-y-auto px-4 py-2">
+          {!todo.filePath.trim() ? (
+            <p className="mt-2 text-xs text-red-900/40">
+              <Link href="/settings" className="text-red-700/50 underline hover:text-red-500">Set file path</Link>
+            </p>
+          ) : (
+            <>
+              {todo.error && <p className="mb-2 text-xs text-red-500/80">{todo.error}</p>}
+              {todo.isWatcherDegraded && <p className="mb-2 text-xs text-amber-700/60">{todo.watcherMessage}</p>}
+              {todo.readOnly && <p className="mb-2 text-xs text-amber-700/60">Read-only</p>}
+              {todo.externalChangeBanner && (
+                <div className="mb-2 flex items-center gap-2 text-xs text-amber-700/50">
+                  <span className="flex-1">{todo.externalChangeBanner}</span>
+                  <button onClick={() => todo.setExternalChangeBanner(null)} className="underline">ok</button>
+                </div>
+              )}
+              <ul>
+                {todo.visibleTasks.map((task) => (
+                  <TaskItem key={task.id} task={task} todo={todo} />
+                ))}
+              </ul>
+            </>
+          )}
+        </div>
+
+        {!todo.readOnly && todo.filePath.trim() && (
+          <div className="border-t border-red-950/30 px-4 py-3">
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={todo.newText}
+                onChange={(e) => todo.setNewText(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && todo.handleAdd()}
+                placeholder="New item..."
+                className="flex-1 border-b border-red-900/20 bg-transparent px-1 py-1 text-xs text-red-300/60 outline-none placeholder:text-red-950/30 focus:border-red-700/40"
+              />
+              <button onClick={todo.handleAdd} disabled={!todo.newText.trim() || todo.loading}
+                className="text-[10px] text-red-700/40 hover:text-red-400 disabled:opacity-30">add</button>
+            </div>
+          </div>
+        )}
+      </aside>
+    </div>
   );
 }

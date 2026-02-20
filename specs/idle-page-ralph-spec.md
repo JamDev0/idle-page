@@ -98,17 +98,12 @@ Priority order (highest to lowest):
 ### 3.5 Runtime and infra
 
 - Preferred runtime environment: Docker.
-- App architecture preference: Next.js + API routes.
+- App architecture preference: Next.js (latest version, e.g. 16.1.6) + API routes.
 - Offline expectation: must work fully offline (for local data path use-case).
 - Settings persistence: localStorage.
 - Git safety idea: auto-commit every edit if feasible; fallback accepted to snapshots only.
 - Git repo expected near TODO file path.
 - If git integration not feasible in-container: fallback to `.bak` snapshots.
-
-### 3.6 Frontend design exploration
-
-- Seven visually distinct design variants required for brainstorming.
-- Chosen finalists for implementation planning: Void Minimal + Glass Ambient.
 
 ---
 
@@ -450,37 +445,6 @@ App must expose states clearly:
 
 ---
 
-## 13) `/frontend-design` Planning Pack
-
-Agents should generate design planning artifacts under `/frontend-design`.
-
-Required files:
-
-- `/frontend-design/variants.md` (7 distinct variants)
-- `/frontend-design/scorecard.md` (priority-based scoring matrix)
-- `/frontend-design/finalists.md` (Void Minimal and Glass Ambient detail spec)
-- `/frontend-design/tokens.md` (colors, spacing, radii, typography)
-- `/frontend-design/components.md` (cards, overlay, controls, banners)
-
-### 13.1 Seven variants
-
-1. Void Minimal  
-2. Glass Ambient  
-3. Brutal Contrast  
-4. Paper Noise  
-5. Cinema Strip  
-6. Terminal Noir  
-7. Quiet Dashboard
-
-### 13.2 Finalists
-
-Selected for implementation:
-
-- Void Minimal
-- Glass Ambient
-
----
-
 ## 14) Security and Privacy
 
 - Local file access must be explicitly user-configured.
@@ -520,7 +484,7 @@ Selected for implementation:
 
 ### M0: Project skeleton
 
-- Initialize Next.js app.
+- Initialize Next.js app with latest version.
 - Define strict TypeScript models.
 - Base dark layout and placeholder media/TODO panels.
 
@@ -550,12 +514,7 @@ Selected for implementation:
 - Prefetch 2 ahead.
 - Remote cache with 2GB cap and eviction.
 
-### M6: Frontend design exploration package
-
-- Build 7 variants in planning artifacts.
-- Implement Void Minimal and Glass Ambient themes/toggles.
-
-### M7: Optional git checkpoints
+### M6: Optional git checkpoints
 
 - Attempt auto-checkpoint strategy only if repo detection and permissions are stable.
 - If unstable, fallback to snapshot backups only.
