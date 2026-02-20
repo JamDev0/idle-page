@@ -2,6 +2,7 @@
  * GET /api/todo — parsed checklist, warnings, file health, last modified.
  * POST /api/todo — create task (body: { text, afterTaskId? }).
  */
+import { randomBytes } from "node:crypto";
 import { NextRequest } from "next/server";
 import { mkdir } from "node:fs/promises";
 import { dirname } from "node:path";
@@ -123,7 +124,7 @@ export async function POST(
     insertAfterLineRef = tasks.length > 0 ? tasks[tasks.length - 1].lineRef : -1;
   }
 
-  const newId = `new-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+  const newId = randomBytes(6).toString("hex");
   const newTask = {
     id: newId,
     text,
