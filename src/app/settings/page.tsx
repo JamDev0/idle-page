@@ -162,6 +162,58 @@ export default function SettingsPage() {
             </p>
           </div>
           <div>
+            <label
+              htmlFor="prefetchConcurrency"
+              className="mb-1 block text-sm text-[var(--muted)]"
+            >
+              Prefetch concurrency
+            </label>
+            <input
+              id="prefetchConcurrency"
+              type="number"
+              min={1}
+              max={4}
+              value={settings.prefetchConcurrency}
+              onChange={(e) => {
+                const v = parseInt(e.target.value, 10);
+                if (!Number.isNaN(v) && v >= 1 && v <= 4) {
+                  setSettings((s) => ({ ...s, prefetchConcurrency: v }));
+                }
+              }}
+              className="w-20 rounded border border-[#262626] bg-[#0f0f0f] px-3 py-2 text-sm"
+              aria-describedby="prefetchConcurrencyHelp"
+            />
+            <p id="prefetchConcurrencyHelp" className="mt-1 text-xs text-[var(--muted)]">
+              How many media items to prefetch ahead (1–4). Default 2.
+            </p>
+          </div>
+          <div>
+            <label
+              htmlFor="remoteCacheLimitMb"
+              className="mb-1 block text-sm text-[var(--muted)]"
+            >
+              Remote cache limit (MB)
+            </label>
+            <input
+              id="remoteCacheLimitMb"
+              type="number"
+              min={256}
+              max={4096}
+              value={settings.remoteCacheLimitMb}
+              onChange={(e) => {
+                const v = parseInt(e.target.value, 10);
+                if (!Number.isNaN(v) && v >= 256 && v <= 4096) {
+                  setSettings((s) => ({ ...s, remoteCacheLimitMb: v }));
+                }
+              }}
+              className="w-24 rounded border border-[#262626] bg-[#0f0f0f] px-3 py-2 text-sm"
+              aria-describedby="remoteCacheLimitMbHelp"
+            />
+            <p id="remoteCacheLimitMbHelp" className="mt-1 text-xs text-[var(--muted)]">
+              Max size for remote media cache in MB (256–4096). Default 2048.
+            </p>
+          </div>
+          <div>
             <label className="flex cursor-pointer items-center gap-2">
               <input
                 type="checkbox"

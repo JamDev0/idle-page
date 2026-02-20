@@ -75,10 +75,15 @@ export function MediaArea() {
       .map((i) => displayList[i]?.id)
       .filter((id): id is string => typeof id === "string");
     if (nextIds.length === 0) return;
+    const remoteCacheLimitMb = s.remoteCacheLimitMb ?? 2048;
     fetch("/api/media/prefetch", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ itemIds: nextIds }),
+      body: JSON.stringify({
+        itemIds: nextIds,
+        preferredConcurrency: concurrency,
+        remoteCacheLimitMb,
+      }),
     }).catch(() => {});
   }, [displayList, currentIndex]);
 
