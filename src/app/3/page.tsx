@@ -10,7 +10,7 @@ import type { Task } from "@/types/task";
 function FilmGrain() {
   return (
     <div
-      className="pointer-events-none absolute inset-0 z-30 mix-blend-overlay opacity-[0.12]"
+      className="pointer-events-none absolute inset-0 z-30 mix-blend-overlay opacity-[0.06]"
       style={{
         backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.2' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`,
       }}
@@ -80,17 +80,17 @@ export default function DarkroomVariant() {
   const media = useMedia();
 
   return (
-    <div className="relative h-screen w-screen overflow-hidden bg-[#0c0404]">
+    <div className="relative h-screen w-screen overflow-hidden bg-[#241414]">
       <FilmGrain />
 
       {/* Red safe-light ambient glow */}
-      <div className="pointer-events-none absolute -right-20 -top-20 h-[500px] w-[500px] rounded-full bg-red-900/[0.06] blur-[180px]" />
-      <div className="pointer-events-none absolute -bottom-32 left-1/4 h-[400px] w-[400px] rounded-full bg-red-800/[0.04] blur-[150px]" />
+      <div className="pointer-events-none absolute -right-20 -top-20 h-[500px] w-[500px] rounded-full bg-red-700/[0.25] blur-[180px]" />
+      <div className="pointer-events-none absolute -bottom-32 left-1/4 h-[400px] w-[400px] rounded-full bg-red-600/[0.18] blur-[150px]" />
 
       {/* Vignette */}
       <div
         className="pointer-events-none absolute inset-0 z-20"
-        style={{ background: "radial-gradient(ellipse at center, transparent 50%, rgba(8,2,2,0.8) 100%)" }}
+        style={{ background: "radial-gradient(ellipse at center, transparent 50%, rgba(28,14,14,0.25) 100%)" }}
       />
 
       {/* Media — center, slight desaturate to match darkroom feel */}
@@ -114,7 +114,7 @@ export default function DarkroomVariant() {
       </div>
 
       {/* Controls — bottom, minimal red-tinted */}
-      <div className="absolute bottom-5 left-1/2 z-30 flex -translate-x-1/2 items-center gap-4 rounded border border-red-900/20 bg-[#0c0404]/70 px-5 py-2 backdrop-blur-sm">
+      <div className="absolute bottom-5 left-1/2 z-30 flex -translate-x-1/2 items-center gap-4 rounded border border-red-900/20 bg-[#241414]/70 px-5 py-2 backdrop-blur-sm">
         <button onClick={media.goPrev} className="text-xs text-red-800/60 transition-colors hover:text-red-400">
           &#9664; prev
         </button>
@@ -127,7 +127,7 @@ export default function DarkroomVariant() {
       </div>
 
       {/* TODO panel — right side, darkroom clipboard */}
-      <aside className="absolute bottom-14 right-5 top-14 z-30 flex w-64 flex-col rounded border border-red-900/15 bg-[#0a0303]/80 backdrop-blur-md">
+      <aside className="absolute bottom-14 right-5 top-14 z-30 flex w-64 flex-col rounded border border-red-900/15 bg-[#241414]/80 backdrop-blur-md">
         <div className="flex items-center justify-between border-b border-red-950/30 px-4 py-3">
           <h2 className="text-[10px] font-medium uppercase tracking-[0.25em] text-red-700/50">Checklist</h2>
           <Link href="/settings" className="text-[10px] text-red-900/40 hover:text-red-600">cfg</Link>
