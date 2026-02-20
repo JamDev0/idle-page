@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { loadSettings } from "@/lib/settings-storage";
+import { loadSettings, SETTINGS_CHANGED_EVENT } from "@/lib/settings-storage";
 import { MediaViewer } from "@/components/MediaViewer";
 import type { MediaItem } from "@/types/media";
 import type { RotationMode } from "@/types/settings";
@@ -24,6 +24,11 @@ export function MediaArea() {
   useEffect(() => {
     const s = loadSettings();
     setRotationMode(s.rotationMode);
+  }, []);
+  useEffect(() => {
+    const handler = () => setRotationMode(loadSettings().rotationMode);
+    window.addEventListener(SETTINGS_CHANGED_EVENT, handler);
+    return () => window.removeEventListener(SETTINGS_CHANGED_EVENT, handler);
   }, []);
 
   useEffect(() => {

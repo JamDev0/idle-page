@@ -7,7 +7,12 @@ import Link from "next/link";
 import { useCallback, useState } from "react";
 import { loadSettings, saveSettings } from "@/lib/settings-storage";
 import type { Settings } from "@/types/settings";
-import type { DesignVariant } from "@/types/settings";
+import type { DesignVariant, RotationMode } from "@/types/settings";
+
+const ROTATION_MODES: { value: RotationMode; label: string }[] = [
+  { value: "random", label: "Random" },
+  { value: "playlist", label: "Playlist" },
+];
 
 const DESIGN_VARIANTS: { value: DesignVariant; label: string }[] = [
   { value: "void-minimal", label: "Void Minimal" },
@@ -96,6 +101,35 @@ export default function SettingsPage() {
             <p id="todoFilePathHelp" className="mt-1 text-xs text-[var(--muted)]">
               Absolute path to your markdown checklist file (e.g. in Docker:
               /data/TO-DO.md).
+            </p>
+          </div>
+          <div>
+            <label
+              htmlFor="rotationMode"
+              className="mb-1 block text-sm text-[var(--muted)]"
+            >
+              Media rotation
+            </label>
+            <select
+              id="rotationMode"
+              value={settings.rotationMode}
+              onChange={(e) =>
+                setSettings((s) => ({
+                  ...s,
+                  rotationMode: e.target.value as RotationMode,
+                }))
+              }
+              className="w-full rounded border border-[#262626] bg-[#0f0f0f] px-3 py-2 text-sm"
+              aria-describedby="rotationModeHelp"
+            >
+              {ROTATION_MODES.map((v) => (
+                <option key={v.value} value={v.value}>
+                  {v.label}
+                </option>
+              ))}
+            </select>
+            <p id="rotationModeHelp" className="mt-1 text-xs text-[var(--muted)]">
+              Random: pick next item at random. Playlist: advance in order; Prev goes back.
             </p>
           </div>
           <div>
