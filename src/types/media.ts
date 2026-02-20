@@ -18,3 +18,11 @@ export interface MediaItem {
   /** Optional warning (e.g. large file) for defensive soft limits (spec §11.4). */
   warning?: string;
 }
+
+/** Response shape for GET /api/media/health (spec §12.3 remote media partial failure). */
+export interface MediaHealthResponse {
+  status: "ok" | "degraded";
+  cacheSizeBytes: number;
+  cacheLimitBytes: number;
+  count?: number;
+}

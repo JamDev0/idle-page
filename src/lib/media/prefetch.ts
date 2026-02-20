@@ -68,12 +68,7 @@ export async function prefetchItemsById(
 /**
  * Get cache health for GET /api/media/health.
  */
-export async function getCacheHealth(remoteCacheLimitMb: number): Promise<{
-  cacheSizeBytes: number;
-  cacheLimitBytes: number;
-  status: "ok" | "degraded";
-  count: number;
-}> {
+export async function getCacheHealth(remoteCacheLimitMb: number) {
   const stats: CacheStats = await getCacheStats(remoteCacheLimitMb);
   const status = stats.sizeBytes > stats.limitBytes ? "degraded" : "ok";
   return {

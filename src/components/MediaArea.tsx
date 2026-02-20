@@ -7,10 +7,11 @@ import {
   SETTINGS_CHANGED_EVENT,
 } from "@/lib/settings-storage";
 import { MediaViewer } from "@/components/MediaViewer";
-import type { MediaItem } from "@/types/media";
+import type { MediaItem, MediaHealthResponse } from "@/types/media";
 import type { RotationMode } from "@/types/settings";
 
 const MEDIA_API = "/api/media";
+const HEALTH_POLL_MS = 60_000;
 
 function pickRandomIndex(length: number, excludeIndex: number): number {
   if (length <= 1) return 0;
@@ -24,6 +25,9 @@ export function MediaArea() {
   const [history, setHistory] = useState<number[]>([]);
   const [rotationMode, setRotationMode] = useState<RotationMode>("playlist");
   const [loading, setLoading] = useState(true);
+  const [mediaHealth, setMediaHealth] = useState<MediaHealthResponse | null>(null);
+  const [prefetchFailedBanner, setPrefetchFailedBanner] = useState(false);
+  const [mediaHealthBannerDismissed, setMediaHealthBannerDismissed] = useState(false);
 
   useEffect(() => {
     const s = loadSettings();
@@ -67,7 +71,36 @@ export function MediaArea() {
   const currentItem: MediaItem | null =
     displayList.length > 0 ? displayList[currentIndex % displayList.length] ?? null : null;
 
-  // Prefetch next 2 items (spec §11.3) to keep transitions seamless
+  // Media health for remote cache / partial failure (spec §12.3, §12.4)
+  const fetchMediaHealth = useCallback(() => {
+    const s = loadSettings();
+    const remoteCacheLimitMb = s.remoteCacheLimitMb ?? 2048;
+    const url = `/api/media/health?remoteCacheLimitMb=${encodeURIComponent(remoteCacheLimitMb)}`;
+    fetch(url)
+      .then((res) => res.json())
+      .then((data: MediaHealthResponse) => {
+        if (data && typeof data.status === "string") {
+          setMediaHealth({
+            status: data.status,
+            cacheSizeBytes: typeof data.cacheSizeBytes === "number" ? data.cacheSizeBytes : 0,
+            cacheLimitBytes: typeof data.cacheLimitBytes === "number" ? data.cacheLimitBytes : 0,
+          });
+        }
+      })
+      .catch(() => setMediaHealth(null));
+  }, []);
+
+  useEffect(() => {
+    if (items.length === 0) {
+      setMediaHealth(null);
+      return;
+    }
+    fetchMediaHealth();
+    const id = setInterval(fetchMediaHealth, HEALTH_POLL_MS);
+    return () => clearInterval(id);
+  }, [items.length, fetchMediaHealth]);
+
+  // Prefetch next 2 items (spec §11.3) to keep transitions seamless; track failures for banner (§12.3)
   useEffect(() => {
     if (displayList.length === 0) return;
     const s = loadSettings();
@@ -89,7 +122,13 @@ export function MediaArea() {
         preferredConcurrency: concurrency,
         remoteCacheLimitMb,
       }),
-    }).catch(() => {});
+    })
+      .then((res) => res.json())
+      .then((data: { prefetched?: string[]; failed?: string[] }) => {
+        const failed = Array.isArray(data?.failed) ? data.failed : [];
+        if (failed.length > 0) setPrefetchFailedBanner(true);
+      })
+      .catch(() => {});
   }, [displayList, currentIndex]);
 
   const goNext = useCallback(() => {
@@ -126,11 +165,61 @@ export function MediaArea() {
     );
   }
 
+  const showCacheDegradedBanner =
+    mediaHealth?.status === "degraded" && !mediaHealthBannerDismissed;
+  const hasRemoteMediaPartialFailure = showCacheDegradedBanner || prefetchFailedBanner;
+
   return (
     <section
       className="absolute inset-0 flex flex-col bg-[var(--color-bg-base)]"
       aria-label="Media display"
     >
+      {/* Remote media partial failure banner (spec §12.3, §12.4) */}
+      {hasRemoteMediaPartialFailure && (
+        <div
+          className="idle-media-health-banner flex flex-wrap items-center justify-center gap-2 px-4 py-2 text-sm"
+          style={{
+            backgroundColor: "var(--color-panel-bg)",
+            borderBottom: "1px solid var(--color-panel-border)",
+            color: "var(--muted)",
+          }}
+          role="alert"
+        >
+          {showCacheDegradedBanner && (
+            <span>
+              Remote cache full; some media may load slowly. Clear space in{" "}
+              <a href="/settings" className="underline hover:text-[var(--fg)]">
+                Settings
+              </a>{" "}
+              or reduce cache limit.
+            </span>
+          )}
+          {showCacheDegradedBanner && prefetchFailedBanner && <span aria-hidden>·</span>}
+          {prefetchFailedBanner && (
+            <span className="flex items-center gap-2">
+              Some remote items could not be loaded.
+              <button
+                type="button"
+                onClick={() => setPrefetchFailedBanner(false)}
+                className="shrink-0 rounded px-2 py-0.5 text-xs underline hover:no-underline"
+                aria-label="Dismiss"
+              >
+                Dismiss
+              </button>
+            </span>
+          )}
+          {showCacheDegradedBanner && (
+            <button
+              type="button"
+              onClick={() => setMediaHealthBannerDismissed(true)}
+              className="shrink-0 rounded px-2 py-0.5 text-xs underline hover:no-underline"
+              aria-label="Dismiss cache notice"
+            >
+              Dismiss
+            </button>
+          )}
+        </div>
+      )}
       <div className="flex flex-1 items-center justify-center">
         <MediaViewer item={currentItem} onNext={goNext} />
       </div>
