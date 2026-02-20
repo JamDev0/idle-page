@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { loadSettings } from "@/lib/settings-storage";
 import type { Task } from "@/types/task";
 import type { TodoFileHealth, TodoParseResult } from "@/types/task";
@@ -23,6 +23,7 @@ export function TodoPanel() {
   const [newText, setNewText] = useState("");
   const [watcherHealth, setWatcherHealth] = useState<WatcherHealth | null>(null);
   const [watcherMessage, setWatcherMessage] = useState<string | null>(null);
+  const checkpointTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const fetchTasks = useCallback(async (path: string) => {
     if (!path.trim()) {
@@ -46,6 +47,28 @@ export function TodoPanel() {
     } finally {
       setLoading(false);
     }
+  }, []);
+
+  const scheduleCheckpoint = useCallback((path: string) => {
+    const s = loadSettings();
+    if (!s.autoCheckpoint || !path.trim()) return;
+    if (checkpointTimeoutRef.current) clearTimeout(checkpointTimeoutRef.current);
+    const delayMs = (s.checkpointDebounceSec ?? 10) * 1000;
+    checkpointTimeoutRef.current = setTimeout(() => {
+      checkpointTimeoutRef.current = null;
+      fetch(`${API_BASE}/checkpoint${query(path)}`, { method: "POST" }).catch(
+        () => {}
+      );
+    }, delayMs);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (checkpointTimeoutRef.current) {
+        clearTimeout(checkpointTimeoutRef.current);
+        checkpointTimeoutRef.current = null;
+      }
+    };
   }, []);
 
   useEffect(() => {
@@ -110,12 +133,13 @@ export function TodoPanel() {
       }
       setNewText("");
       await fetchTasks(filePath);
+      scheduleCheckpoint(filePath);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Create failed");
     } finally {
       setLoading(false);
     }
-  }, [filePath, newText, fetchTasks]);
+  }, [filePath, newText, fetchTasks, scheduleCheckpoint]);
 
   const handleToggle = useCallback(
     async (task: Task) => {
@@ -134,13 +158,14 @@ export function TodoPanel() {
           return;
         }
         await fetchTasks(filePath);
+        scheduleCheckpoint(filePath);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Update failed");
       } finally {
         setLoading(false);
       }
     },
-    [filePath, fetchTasks]
+    [filePath, fetchTasks, scheduleCheckpoint]
   );
 
   const handleSaveEdit = useCallback(
@@ -163,13 +188,14 @@ export function TodoPanel() {
           return;
         }
         await fetchTasks(filePath);
+        scheduleCheckpoint(filePath);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Update failed");
       } finally {
         setLoading(false);
       }
     },
-    [filePath, editText, fetchTasks]
+    [filePath, editText, fetchTasks, scheduleCheckpoint]
   );
 
   const handleDelete = useCallback(
@@ -187,13 +213,14 @@ export function TodoPanel() {
           return;
         }
         await fetchTasks(filePath);
+        scheduleCheckpoint(filePath);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Delete failed");
       } finally {
         setLoading(false);
       }
     },
-    [filePath, fetchTasks]
+    [filePath, fetchTasks, scheduleCheckpoint]
   );
 
   const handleReorder = useCallback(
@@ -213,13 +240,14 @@ export function TodoPanel() {
           return;
         }
         setData(json);
+        scheduleCheckpoint(filePath);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Reorder failed");
       } finally {
         setLoading(false);
       }
     },
-    [filePath]
+    [filePath, scheduleCheckpoint]
   );
 
   const moveUp = useCallback(

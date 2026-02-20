@@ -13,6 +13,10 @@ export interface Settings {
   prefetchConcurrency: number;
   remoteCacheLimitMb: number;
   designVariant: DesignVariant;
+  /** When true, after each TODO write a debounced git checkpoint is requested (optional follow-up per spec). */
+  autoCheckpoint: boolean;
+  /** Debounce delay in seconds before triggering checkpoint (used when autoCheckpoint is true). */
+  checkpointDebounceSec: number;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -22,4 +26,6 @@ export const DEFAULT_SETTINGS: Settings = {
   prefetchConcurrency: 2,
   remoteCacheLimitMb: 2048,
   designVariant: "void-minimal",
+  autoCheckpoint: false,
+  checkpointDebounceSec: 10,
 };
