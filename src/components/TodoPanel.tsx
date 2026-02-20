@@ -123,7 +123,7 @@ export function TodoPanel() {
     es.onerror = () => {
       es.close();
       setWatcherHealth("degraded");
-      setWatcherMessage("Live updates disconnected. Use manual refresh.");
+      setWatcherMessage("Live updates disconnected. Refreshing every 7s.");
     };
 
     return () => {
@@ -132,6 +132,17 @@ export function TodoPanel() {
       setWatcherMessage(null);
     };
   }, [filePath, fetchTasks]);
+
+  // Optional polling fallback when watcher is degraded or retrying (spec §10.3: 5–10s in degraded mode)
+  const POLL_INTERVAL_MS = 7000;
+  useEffect(() => {
+    if (!filePath.trim()) return;
+    if (watcherHealth !== "degraded" && watcherHealth !== "retrying") return;
+    const id = setInterval(() => {
+      fetchTasks(filePath);
+    }, POLL_INTERVAL_MS);
+    return () => clearInterval(id);
+  }, [filePath, watcherHealth, fetchTasks]);
 
   const handleAdd = useCallback(async () => {
     const text = newText.trim();
@@ -362,6 +373,7 @@ export function TodoPanel() {
           {isWatcherDegraded && (
             <p className="mb-2 text-sm text-amber-500" role="alert">
               {watcherMessage ?? (watcherHealth === "retrying" ? "Watcher retrying…" : "Watcher unavailable.")}
+              {watcherHealth === "retrying" ? " Refreshing every 7s." : ""}
             </p>
           )}
           {externalChangeBanner && (
