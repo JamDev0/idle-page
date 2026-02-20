@@ -2,9 +2,10 @@
  * Media registry: read/write media-registry.json under media base path (spec §6.2, §8.2).
  * Warns for large local files per spec §11.4 (defensive soft limits).
  */
-import { mkdir, readFile, stat, writeFile } from "node:fs/promises";
+import { mkdir, readFile, stat, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { getMediaBasePath, normalizeMediaPath } from "@/lib/fs/hostPath";
+import { deleteCachedFile } from "@/lib/media/cache";
 import type { MediaItem, MediaSource, MediaType } from "@/types/media";
 
 const REGISTRY_FILENAME = "media-registry.json";
@@ -90,6 +91,7 @@ export interface ImportItemInput {
   source: MediaSource;
   uri: string;
   title?: string;
+  attribution?: string;
   durationHintMs?: number;
 }
 
@@ -130,6 +132,7 @@ export async function addMediaItems(
       source: input.source,
       uri,
       title: input.title?.trim(),
+      attribution: input.attribution?.trim(),
       durationHintMs: input.durationHintMs,
       status: "ready",
       ...(warning && { warning }),
@@ -157,4 +160,26 @@ export function isPathUnderMediaBase(filePath: string): boolean {
   const base = path.resolve(getMediaBasePath());
   const resolved = path.resolve(filePath);
   return resolved.startsWith(base);
+}
+
+export async function removeMediaItem(id: string): Promise<MediaItem | null> {
+  const registry = await readMediaRegistry();
+  const index = registry.items.findIndex((item) => item.id === id);
+  if (index === -1) return null;
+
+  const item = registry.items[index];
+
+  if (item.source === "local") {
+    try {
+      await unlink(item.uri);
+    } catch {
+      // File may not exist
+    }
+  } else if (item.source === "remote") {
+    await deleteCachedFile(item.uri);
+  }
+
+  registry.items.splice(index, 1);
+  await writeMediaRegistry(registry);
+  return item;
 }

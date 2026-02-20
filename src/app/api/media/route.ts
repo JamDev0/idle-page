@@ -3,7 +3,7 @@
  * POST /api/media/import — add media items (spec §8.2).
  */
 import { NextRequest } from "next/server";
-import { addMediaItems, readMediaRegistry } from "@/lib/media/registry";
+import { addMediaItems, readMediaRegistry, removeMediaItem } from "@/lib/media/registry";
 import type { ImportItemInput } from "@/lib/media/registry";
 
 export async function GET() {
@@ -46,6 +46,7 @@ export async function POST(request: NextRequest) {
       source: item.source,
       uri: item.uri,
       title: item.title,
+      attribution: item.attribution,
       durationHintMs: item.durationHintMs,
     });
   }
@@ -59,4 +60,18 @@ export async function POST(request: NextRequest) {
 
   const added = await addMediaItems(valid);
   return Response.json({ items: added }, { status: 201 });
+}
+
+export async function DELETE(request: NextRequest) {
+  const id = request.nextUrl.searchParams.get("id");
+  if (!id) {
+    return Response.json({ error: "Missing id parameter" }, { status: 400 });
+  }
+
+  const removed = await removeMediaItem(id);
+  if (!removed) {
+    return Response.json({ error: "Item not found" }, { status: 404 });
+  }
+
+  return Response.json({ item: removed }, { status: 200 });
 }

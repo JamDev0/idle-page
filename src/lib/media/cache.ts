@@ -232,3 +232,19 @@ export async function ensureCacheLimit(limitMb: number): Promise<CacheStats> {
   await writeManifest(afterEvict);
   return getCacheStats(limitMb);
 }
+
+export async function deleteCachedFile(url: string): Promise<boolean> {
+  if (!isAllowedRemoteUrl(url)) return false;
+  const manifest = await readManifest();
+  const entry = manifest.entries[url];
+  if (!entry) return false;
+  try {
+    await unlink(entry.path);
+  } catch {
+    // File may not exist
+  }
+  const nextEntries = { ...manifest.entries };
+  delete nextEntries[url];
+  await writeManifest({ entries: nextEntries });
+  return true;
+}
