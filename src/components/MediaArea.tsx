@@ -1,7 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { loadSettings, SETTINGS_CHANGED_EVENT } from "@/lib/settings-storage";
+import {
+  loadSettings,
+  MEDIA_REGISTRY_CHANGED_EVENT,
+  SETTINGS_CHANGED_EVENT,
+} from "@/lib/settings-storage";
 import { MediaViewer } from "@/components/MediaViewer";
 import type { MediaItem } from "@/types/media";
 import type { RotationMode } from "@/types/settings";
@@ -31,28 +35,29 @@ export function MediaArea() {
     return () => window.removeEventListener(SETTINGS_CHANGED_EVENT, handler);
   }, []);
 
-  useEffect(() => {
-    let cancelled = false;
+  const refetchMedia = useCallback(() => {
     setLoading(true);
     fetch(MEDIA_API)
       .then((res) => res.json())
       .then((data: { items?: MediaItem[] }) => {
-        if (cancelled) return;
         const list = Array.isArray(data?.items) ? data.items : [];
         setItems(list);
         setCurrentIndex(0);
         setHistory([]);
       })
-      .catch(() => {
-        if (!cancelled) setItems([]);
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
+      .catch(() => setItems([]))
+      .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    refetchMedia();
+  }, [refetchMedia]);
+
+  useEffect(() => {
+    const handler = () => refetchMedia();
+    window.addEventListener(MEDIA_REGISTRY_CHANGED_EVENT, handler);
+    return () => window.removeEventListener(MEDIA_REGISTRY_CHANGED_EVENT, handler);
+  }, [refetchMedia]);
 
   const displayList = useMemo(() => {
     if (rotationMode !== "random" || items.length <= 1) return items;

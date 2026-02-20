@@ -18,6 +18,7 @@ export function loadSettings(): Settings {
 }
 
 export const SETTINGS_CHANGED_EVENT = "idle-page-settings-changed";
+export const MEDIA_REGISTRY_CHANGED_EVENT = "idle-page-media-registry-changed";
 
 export function saveSettings(settings: Settings): void {
   if (typeof window === "undefined") return;

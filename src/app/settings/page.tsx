@@ -4,8 +4,12 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useState } from "react";
-import { loadSettings, saveSettings } from "@/lib/settings-storage";
+import { useCallback, useRef, useState } from "react";
+import {
+  loadSettings,
+  MEDIA_REGISTRY_CHANGED_EVENT,
+  saveSettings,
+} from "@/lib/settings-storage";
 import type { Settings } from "@/types/settings";
 import type { DesignVariant, RotationMode } from "@/types/settings";
 
@@ -25,12 +29,22 @@ type CheckpointStatus =
   | { state: "ok"; message: string }
   | { state: "unsupported"; reason: string };
 
+type MediaImportStatus =
+  | { state: "idle" }
+  | { state: "loading" }
+  | { state: "ok"; count: number }
+  | { state: "error"; message: string };
+
 export default function SettingsPage() {
   const [settings, setSettings] = useState<Settings>(() => loadSettings());
   const [saved, setSaved] = useState(false);
   const [checkpointStatus, setCheckpointStatus] = useState<CheckpointStatus>({
     state: "idle",
   });
+  const [mediaImportStatus, setMediaImportStatus] =
+    useState<MediaImportStatus>({ state: "idle" });
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [remoteUrl, setRemoteUrl] = useState("");
 
   const handleSave = useCallback(() => {
     saveSettings(settings);
@@ -74,6 +88,96 @@ export default function SettingsPage() {
     }
     setTimeout(() => setCheckpointStatus({ state: "idle" }), 4000);
   }, [settings.todoFilePath]);
+
+  const handleUploadFiles = useCallback(async () => {
+    const input = fileInputRef.current;
+    if (!input?.files?.length) {
+      setMediaImportStatus({
+        state: "error",
+        message: "Select one or more files first.",
+      });
+      setTimeout(() => setMediaImportStatus({ state: "idle" }), 4000);
+      return;
+    }
+    setMediaImportStatus({ state: "loading" });
+    try {
+      const formData = new FormData();
+      for (let i = 0; i < input.files.length; i++) {
+        const file = input.files[i];
+        if (file) formData.append("files", file);
+      }
+      const res = await fetch("/api/media/upload", {
+        method: "POST",
+        body: formData,
+      });
+      const data = (await res.json()) as
+        | { items?: unknown[] }
+        | { error?: string; rejected?: { name: string; reason: string }[] };
+      if (!res.ok) {
+        const err =
+          "error" in data && typeof data.error === "string"
+            ? data.error
+            : "Upload failed";
+        const rejected =
+          "rejected" in data && Array.isArray(data.rejected)
+            ? data.rejected.map((r) => `${r.name}: ${r.reason}`).join("; ")
+            : "";
+        setMediaImportStatus({
+          state: "error",
+          message: rejected ? `${err}. ${rejected}` : err,
+        });
+      } else {
+        const count = "items" in data && Array.isArray(data.items) ? data.items.length : 0;
+        setMediaImportStatus({ state: "ok", count });
+        window.dispatchEvent(new CustomEvent(MEDIA_REGISTRY_CHANGED_EVENT));
+      }
+      input.value = "";
+    } catch {
+      setMediaImportStatus({ state: "error", message: "Request failed." });
+    }
+    setTimeout(() => setMediaImportStatus({ state: "idle" }), 4000);
+  }, []);
+
+  const handleAddByUrl = useCallback(async () => {
+    const url = remoteUrl.trim();
+    if (!url) {
+      setMediaImportStatus({
+        state: "error",
+        message: "Enter a URL first.",
+      });
+      setTimeout(() => setMediaImportStatus({ state: "idle" }), 4000);
+      return;
+    }
+    setMediaImportStatus({ state: "loading" });
+    try {
+      const res = await fetch("/api/media", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          items: [{ source: "remote", uri: url }],
+        }),
+      });
+      const data = (await res.json()) as
+        | { items?: unknown[] }
+        | { error?: string };
+      if (!res.ok) {
+        setMediaImportStatus({
+          state: "error",
+          message:
+            "error" in data && typeof data.error === "string"
+              ? data.error
+              : "Add failed.",
+        });
+      } else {
+        setMediaImportStatus({ state: "ok", count: 1 });
+        setRemoteUrl("");
+        window.dispatchEvent(new CustomEvent(MEDIA_REGISTRY_CHANGED_EVENT));
+      }
+    } catch {
+      setMediaImportStatus({ state: "error", message: "Request failed." });
+    }
+    setTimeout(() => setMediaImportStatus({ state: "idle" }), 4000);
+  }, [remoteUrl]);
 
   return (
     <main className="min-h-screen bg-[var(--bg)] p-6 text-[var(--fg)]">
@@ -241,6 +345,62 @@ export default function SettingsPage() {
             </button>
             {saved && (
               <span className="text-sm text-[var(--muted)]">Saved.</span>
+            )}
+          </div>
+          <div className="border-t border-[#262626] pt-4">
+            <h2 className="mb-2 text-sm font-medium text-[var(--fg)]">
+              Add media
+            </h2>
+            <p className="mb-2 text-xs text-[var(--muted)]">
+              Upload files (images, GIFs, videos) or add a remote URL. Supported:
+              jpg, png, gif, webp, avif, svg, mp4, webm, ogg, mov.
+            </p>
+            <div className="mb-4 flex flex-wrap items-center gap-2">
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                accept=".jpg,.jpeg,.png,.gif,.webp,.avif,.svg,.mp4,.webm,.ogg,.mov"
+                className="text-sm text-[var(--muted)] file:mr-2 file:rounded file:border-0 file:bg-[#262626] file:px-3 file:py-1.5 file:text-sm file:text-[var(--fg)]"
+                aria-label="Select files to upload"
+              />
+              <button
+                type="button"
+                onClick={handleUploadFiles}
+                disabled={mediaImportStatus.state === "loading"}
+                className="rounded bg-[#262626] px-4 py-2 text-sm hover:bg-[#333] disabled:opacity-50"
+              >
+                Upload
+              </button>
+            </div>
+            <div className="mb-4 flex flex-wrap items-center gap-2">
+              <input
+                type="url"
+                value={remoteUrl}
+                onChange={(e) => setRemoteUrl(e.target.value)}
+                placeholder="https://example.com/image.jpg"
+                className="min-w-[200px] flex-1 rounded border border-[#262626] bg-[#0f0f0f] px-3 py-2 text-sm"
+                aria-label="Remote media URL"
+              />
+              <button
+                type="button"
+                onClick={handleAddByUrl}
+                disabled={mediaImportStatus.state === "loading"}
+                className="rounded bg-[#262626] px-4 py-2 text-sm hover:bg-[#333] disabled:opacity-50"
+              >
+                Add URL
+              </button>
+            </div>
+            {mediaImportStatus.state === "ok" && (
+              <p className="text-sm text-[var(--muted)]">
+                Added {mediaImportStatus.count} item
+                {mediaImportStatus.count !== 1 ? "s" : ""}.
+              </p>
+            )}
+            {mediaImportStatus.state === "error" && (
+              <p className="text-sm text-red-400" role="alert">
+                {mediaImportStatus.message}
+              </p>
             )}
           </div>
           <div className="border-t border-[#262626] pt-4">
