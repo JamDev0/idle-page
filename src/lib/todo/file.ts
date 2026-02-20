@@ -1,7 +1,8 @@
 /**
  * Read/write helpers for TODO file (used by API routes).
+ * Writes are atomic per spec §9.2 (temp file + rename when supported).
  */
-import { readFile, stat, writeFile } from "node:fs/promises";
+import { readFile, rename, stat, unlink, writeFile } from "node:fs/promises";
 
 export async function readTodoFile(
   filePath: string
@@ -25,9 +26,20 @@ export async function readTodoFile(
   }
 }
 
+/**
+ * Writes content atomically: write to temp file then rename to target.
+ * On cross-filesystem rename failure, falls back to direct write and removes temp.
+ */
 export async function writeTodoFile(
   filePath: string,
   content: string
 ): Promise<void> {
-  await writeFile(filePath, content, "utf-8");
+  const tempPath = `${filePath}.tmp.${Date.now()}`;
+  await writeFile(tempPath, content, "utf-8");
+  try {
+    await rename(tempPath, filePath);
+  } catch {
+    await writeFile(filePath, content, "utf-8");
+    await unlink(tempPath).catch(() => {});
+  }
 }

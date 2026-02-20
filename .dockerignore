@@ -1,0 +1,45 @@
+# Dependencies and build artifacts
+node_modules
+.next
+out
+build
+dist
+
+# Git and env
+.git
+.gitignore
+.env
+.env.*
+!.env.example
+
+# Docs and agent files (not needed in image)
+*.md
+loop.sh
+frontend-design
+docs
+specs
+
+# Dev and test
+coverage
+.jest-cache
+**/__tests__
+**/*.test.ts
+**/*.test.tsx
+**/*.spec.ts
+**/*.spec.tsx
+jest.config.js
+
+# IDE and OS
+.idea
+.vscode
+.DS_Store
+Thumbs.db
+
+# Misc
+npm-debug.log*
+*.swp
+*.swo
+remote-cache
+media-registry.json
+IMPLEMENTATION_PLAN.md
+AGENTS.md

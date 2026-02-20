@@ -14,6 +14,7 @@ const config = {
     "!src/**/*.d.ts",
     "!src/**/__tests__/**",
   ],
+  modulePathIgnorePatterns: ["<rootDir>/.next"],
 };
 
 module.exports = createJestConfig(config);
