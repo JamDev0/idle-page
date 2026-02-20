@@ -29,8 +29,8 @@ export function MediaViewer({ item, onNext }: MediaViewerProps) {
         <blockquote className="text-xl italic text-[var(--fg)]">
           {(item.title ?? item.uri) || "—"}
         </blockquote>
-        {item.title && item.uri && (
-          <cite className="mt-4 text-sm text-[var(--muted)]">{item.uri}</cite>
+        {(item.attribution ?? item.uri) && (
+          <cite className="mt-4 text-sm text-[var(--muted)]">{item.attribution ?? item.uri}</cite>
         )}
       </div>
     );
