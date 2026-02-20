@@ -39,7 +39,7 @@ export function MediaViewer({ item, onNext }: MediaViewerProps) {
   if (item.type === "video") {
     const src = mediaSrc(item);
     return (
-      <div className="relative flex min-h-[40vh] w-full items-center justify-center">
+      <div className="relative flex min-h-[40vh] w-full flex-col items-center justify-center">
         <video
           key={item.id}
           className="max-h-[80vh] max-w-full object-contain"
@@ -50,6 +50,11 @@ export function MediaViewer({ item, onNext }: MediaViewerProps) {
           playsInline
           onEnded={onNext}
         />
+        {item.warning && (
+          <p className="mt-2 text-xs text-[var(--muted)]" role="status">
+            {item.warning}
+          </p>
+        )}
       </div>
     );
   }
@@ -57,13 +62,18 @@ export function MediaViewer({ item, onNext }: MediaViewerProps) {
   if (item.type === "image" || item.type === "gif") {
     const src = mediaSrc(item);
     return (
-      <div className="flex min-h-[40vh] w-full items-center justify-center">
+      <div className="flex min-h-[40vh] w-full flex-col items-center justify-center">
         <img
           key={item.id}
           className="max-h-[80vh] max-w-full object-contain"
           src={src}
           alt={item.title ?? ""}
         />
+        {item.warning && (
+          <p className="mt-2 text-xs text-[var(--muted)]" role="status">
+            {item.warning}
+          </p>
+        )}
       </div>
     );
   }

@@ -1,7 +1,8 @@
 /**
  * Media registry: read/write media-registry.json under media base path (spec §6.2, §8.2).
+ * Warns for large local files per spec §11.4 (defensive soft limits).
  */
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { getMediaBasePath, normalizeMediaPath } from "@/lib/fs/hostPath";
 import type { MediaItem, MediaSource, MediaType } from "@/types/media";
@@ -76,6 +77,14 @@ export async function writeMediaRegistry(registry: MediaRegistry): Promise<void>
   await writeFile(filePath, JSON.stringify(registry, null, 2), "utf-8");
 }
 
+/** Soft limit (bytes) above which local files get a warning (spec §11.4). */
+const LARGE_FILE_WARNING_BYTES = 50 * 1024 * 1024; // 50 MB
+
+export interface AddMediaItemsOptions {
+  /** Override for tests; when set, local files over this size get a warning. */
+  largeFileWarningBytes?: number;
+}
+
 export interface ImportItemInput {
   type?: MediaType;
   source: MediaSource;
@@ -84,17 +93,34 @@ export interface ImportItemInput {
   durationHintMs?: number;
 }
 
+function formatLargeFileWarning(sizeBytes: number): string {
+  const mb = (sizeBytes / (1024 * 1024)).toFixed(1);
+  return `Large file (${mb} MB); may affect performance.`;
+}
+
 export async function addMediaItems(
-  inputs: ImportItemInput[]
+  inputs: ImportItemInput[],
+  options?: AddMediaItemsOptions
 ): Promise<MediaItem[]> {
+  const threshold =
+    options?.largeFileWarningBytes ?? LARGE_FILE_WARNING_BYTES;
   const registry = await readMediaRegistry();
   const added: MediaItem[] = [];
   for (const input of inputs) {
     let uri = input.uri.trim();
+    let warning: string | undefined;
     if (input.source === "local") {
       const resolved = normalizeMediaPath(uri);
       if (!resolved) continue;
       uri = resolved;
+      try {
+        const st = await stat(resolved);
+        if (st.size > threshold) {
+          warning = formatLargeFileWarning(st.size);
+        }
+      } catch {
+        // stat failed (e.g. missing file); item still added, status ready; asset route will fail when served
+      }
     }
     const type =
       input.type ?? (input.source === "inline" ? "quote" : inferTypeFromUri(uri));
@@ -106,6 +132,7 @@ export async function addMediaItems(
       title: input.title?.trim(),
       durationHintMs: input.durationHintMs,
       status: "ready",
+      ...(warning && { warning }),
     };
     registry.items.push(item);
     added.push(item);

@@ -15,4 +15,6 @@ export interface MediaItem {
   title?: string;
   durationHintMs?: number;
   status: MediaStatus;
+  /** Optional warning (e.g. large file) for defensive soft limits (spec §11.4). */
+  warning?: string;
 }

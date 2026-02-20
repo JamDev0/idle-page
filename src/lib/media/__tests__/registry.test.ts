@@ -132,6 +132,36 @@ describe("addMediaItems", () => {
     expect(added[0].type).toBe("quote");
     expect(added[0].title).toBe("A quote");
   });
+
+  it("sets warning on local file over largeFileWarningBytes (spec §11.4)", async () => {
+    const bigDir = path.join(tempDir, "big");
+    const { mkdir } = await import("node:fs/promises");
+    await mkdir(bigDir, { recursive: true });
+    const bigPath = path.join(bigDir, "large.png");
+    await writeFile(bigPath, "x".repeat(200), "utf-8");
+    process.env.MEDIA_BASE_PATH = tempDir;
+    const added = await addMediaItems(
+      [{ source: "local", uri: path.join("big", "large.png") }],
+      { largeFileWarningBytes: 100 }
+    );
+    expect(added).toHaveLength(1);
+    expect(added[0].warning).toBeDefined();
+    expect(added[0].warning).toMatch(/Large file.*MB.*may affect performance/);
+  });
+
+  it("does not set warning on local file under threshold", async () => {
+    const smallDir = path.join(tempDir, "small");
+    const { mkdir } = await import("node:fs/promises");
+    await mkdir(smallDir, { recursive: true });
+    await writeFile(path.join(smallDir, "tiny.png"), "x", "utf-8");
+    process.env.MEDIA_BASE_PATH = tempDir;
+    const added = await addMediaItems(
+      [{ source: "local", uri: path.join("small", "tiny.png") }],
+      { largeFileWarningBytes: 100 }
+    );
+    expect(added).toHaveLength(1);
+    expect(added[0].warning).toBeUndefined();
+  });
 });
 
 describe("resolveLocalUri", () => {
