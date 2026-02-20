@@ -93,6 +93,17 @@ describe("TODO API CRUD integration", () => {
     expect(newTask?.text).toBe("new task");
   });
 
+  it("POST with empty text returns 400 and does not write (spec §5.2 malformed writes)", async () => {
+    const contentBefore = await readFile(filePath, "utf-8");
+    const req = requestWithBody(filePath, "/api/todo", "POST", { text: "   " });
+    const res = await TodoRoute.POST(req);
+    expect(res.status).toBe(400);
+    const data = await res.json();
+    expect(data.error).toContain("non-empty");
+    const contentAfter = await readFile(filePath, "utf-8");
+    expect(contentAfter).toBe(contentBefore);
+  });
+
   it("PATCH updates task text and checked", async () => {
     const getReq = requestWithPath(filePath, "/api/todo");
     const getRes = await TodoRoute.GET(getReq);
