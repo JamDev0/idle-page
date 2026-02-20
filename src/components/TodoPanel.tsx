@@ -85,6 +85,16 @@ export function TodoPanel() {
     if (s.todoFilePath) fetchTasks(s.todoFilePath);
   }, [fetchTasks]);
 
+  const health = data?.fileHealth ?? null;
+  /** Read-only when parse confidence is low (spec §5.2, §12.3). */
+  const readOnly = health != null && health !== "ok";
+  useEffect(() => {
+    if (readOnly) {
+      setEditingId(null);
+      setEditText("");
+    }
+  }, [readOnly]);
+
   // SSE stream for file changes and watcher health (spec §8.1, §10.2)
   useEffect(() => {
     if (!filePath.trim()) {
@@ -315,7 +325,6 @@ export function TodoPanel() {
   const visibleTasks = showCompleted
     ? tasks
     : tasks.filter((t) => !t.checked);
-  const health = data?.fileHealth ?? null;
   const isDegraded = health && health !== "ok" && health !== "missing";
   const isWatcherDegraded =
     watcherHealth === "degraded" || watcherHealth === "retrying";
@@ -368,9 +377,9 @@ export function TodoPanel() {
               </button>
             </p>
           )}
-          {isDegraded && (
+          {readOnly && (
             <p className="mb-2 text-sm text-amber-500" role="alert">
-              File: {health}. {data?.parseWarnings?.join(" ") ?? ""}
+              Read-only: {health === "missing" ? "file missing." : health === "unreadable" ? "file unreadable." : "parse error — fix file to edit."} {data?.parseWarnings?.length ? data.parseWarnings.join(" ") : ""}
             </p>
           )}
           {error && (
@@ -391,12 +400,13 @@ export function TodoPanel() {
                 <button
                   type="button"
                   onClick={() => handleToggle(task)}
+                  disabled={readOnly}
                   aria-label={task.checked ? "Mark incomplete" : "Mark complete"}
-                  className="shrink-0 rounded border border-[#404040] bg-transparent px-1.5 py-0.5 text-xs"
+                  className="shrink-0 rounded border border-[#404040] bg-transparent px-1.5 py-0.5 text-xs disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {task.checked ? "✓" : "○"}
                 </button>
-                {editingId === task.id ? (
+                {editingId === task.id && !readOnly ? (
                   <>
                     <input
                       type="text"
@@ -430,7 +440,7 @@ export function TodoPanel() {
                     <button
                       type="button"
                       onClick={() => moveUp(indexInFullList(task))}
-                      disabled={!canMoveUp(task) || loading}
+                      disabled={readOnly || !canMoveUp(task) || loading}
                       aria-label="Move up"
                       className="shrink-0 text-xs text-[var(--muted)] hover:text-[var(--fg)] disabled:opacity-40"
                     >
@@ -439,7 +449,7 @@ export function TodoPanel() {
                     <button
                       type="button"
                       onClick={() => moveDown(indexInFullList(task))}
-                      disabled={!canMoveDown(task) || loading}
+                      disabled={readOnly || !canMoveDown(task) || loading}
                       aria-label="Move down"
                       className="shrink-0 text-xs text-[var(--muted)] hover:text-[var(--fg)] disabled:opacity-40"
                     >
@@ -448,15 +458,17 @@ export function TodoPanel() {
                     <button
                       type="button"
                       onClick={() => startEdit(task)}
-                      className="shrink-0 text-xs text-[var(--muted)] hover:text-[var(--fg)]"
+                      disabled={readOnly}
+                      className="shrink-0 text-xs text-[var(--muted)] hover:text-[var(--fg)] disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       Edit
                     </button>
                     <button
                       type="button"
                       onClick={() => handleDelete(task.id)}
+                      disabled={readOnly}
                       aria-label="Delete task"
-                      className="shrink-0 text-xs text-[var(--muted)] hover:text-red-400"
+                      className="shrink-0 text-xs text-[var(--muted)] hover:text-red-400 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       Delete
                     </button>
@@ -472,12 +484,14 @@ export function TodoPanel() {
               onChange={(e) => setNewText(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleAdd()}
               placeholder="New task…"
-              className="min-w-0 flex-1 rounded border border-[#404040] bg-[#0f0f0f] px-2 py-1.5 text-sm"
+              disabled={readOnly}
+              aria-readonly={readOnly}
+              className="min-w-0 flex-1 rounded border border-[#404040] bg-[#0f0f0f] px-2 py-1.5 text-sm disabled:opacity-60 disabled:cursor-not-allowed"
             />
             <button
               type="button"
               onClick={handleAdd}
-              disabled={!newText.trim() || loading}
+              disabled={readOnly || !newText.trim() || loading}
               className="shrink-0 rounded bg-[#262626] px-3 py-1.5 text-sm hover:bg-[#333] disabled:opacity-50"
             >
               Add
