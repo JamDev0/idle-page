@@ -1,0 +1,18 @@
+# Idle Page — Docker Compose (spec §3.5, §6.3)
+# Run with: docker compose up --build
+# Mount TODO file and media under /data (single directory mount for resilience).
+services:
+  app:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      TODO_BASE_PATH: /data
+      MEDIA_BASE_PATH: /data
+    volumes:
+      # Mount host directory for TODO file and media (e.g. ./data on host -> /data in container)
+      - idledata:/data
+    restart: unless-stopped
+
+volumes:
+  idledata:

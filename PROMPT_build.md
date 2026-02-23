@@ -1,4 +1,4 @@
-0a. Study `specs/idle-page-ralph-spec.md.md` to learn the application specifications.
+0a. Study `specs/idle-page-ralph-spec.md` to learn the application specifications.
 0b. Study @IMPLEMENTATION_PLAN.md.
 0c. For reference, the application source code is in `./src`.
 
@@ -8,6 +8,7 @@
 3. When you discover issues, immediately update @IMPLEMENTATION_PLAN.md with your findings. When resolved, update and remove the item.
 4. When the tests pass, update @IMPLEMENTATION_PLAN.md, then `git add` all changes exept the ones made on the files: `*.md` and `loop.sh`; then `git commit` with a message describing the changes.
 
+999. Use the skills next-best-practices, react-best-practices
 9999.When writting typescript you MUST follow these rules: Avoid using `as`, let Typescript infer, if it can't try helping it, if there is no solution, then use as, but only as last resource; Never define functions return types, just only extremely needed for clarity, rely on TypeScript's inference, as it always reflects the truth of the code.; Always define explicit types, avoid as much as possible using any and unknow, always try to find otherways that are more industry standard.; Follow Typescript Strict mode guidelines; Prefer Existing Type Definitions
   When a type already exists in a library or the codebase, import and use it rather than manually defining the shape inline.
   ```typescript
