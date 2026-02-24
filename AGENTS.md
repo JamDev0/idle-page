@@ -49,3 +49,11 @@ Succinct learnings about how to RUN the project:
 	    // ...
 	}
   ```
+
+## Cursor Cloud specific instructions
+
+- **Single service**: Next.js dev server on port 3000 (`npm run dev`). No databases or external services needed.
+- **ESLint not configured**: `npm run lint` prompts for interactive ESLint setup. The project currently has no `.eslintrc` or `eslint.config.*` file.
+- **File-based data**: TODO and media data stored on the local filesystem. Env vars `TODO_BASE_PATH` and `MEDIA_BASE_PATH` default to `process.cwd()` when unset.
+- **Tests**: `npm test` runs Jest with jsdom. All tests are unit/integration and require no external services.
+- **Dev server startup**: `npm run dev` starts on port 3000. To verify: `curl -s http://localhost:3000` should return 200.
