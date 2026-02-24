@@ -1,24 +1,21 @@
-# IMPORTANT
-- NEVER COMMIT THE FILES: `*.md` and `loop.sh`
-- DO NOT CHANGE THE NPM PRIVATE REGISTRY
-
 ## Build & Run
 
 Succinct rules for how to BUILD the project:
 
-- 
+- `npm install` then `npm run build`
 
 ## Validation
 
 Run these after implementing to get immediate feedback:
 
-- 
+- `npm test` (Jest); `npm run build` (Next.js)
 
 ## Operational Notes
 
 Succinct learnings about how to RUN the project:
 
-- 
+- `npm run dev` — dev server. Use `jest.config.js` (not .ts) to avoid ts-node.
+- Docker: `docker compose up --build`. For private npm registry: `docker build --secret id=npm,src=$HOME/.npmrc .` then run the image. 
 
 ### Codebase Patterns
 
