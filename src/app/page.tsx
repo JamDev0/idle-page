@@ -17,6 +17,19 @@ function FilmGrain() {
   );
 }
 
+function ScanLines() {
+  return (
+    <div
+      className="pointer-events-none absolute inset-0 z-[25] opacity-[0.035]"
+      style={{
+        backgroundImage:
+          "linear-gradient(to bottom, rgba(255,220,220,0.08) 1px, transparent 1px)",
+        backgroundSize: "100% 4px",
+      }}
+    />
+  );
+}
+
 function TaskItem({ task, todo }: { task: Task; todo: ReturnType<typeof useTodos> }) {
   const idx = todo.indexInFullList(task);
   const isEditing = todo.editingId === task.id && !todo.readOnly;
@@ -81,47 +94,58 @@ export default function HomePage() {
   return (
     <div className="relative h-screen w-screen overflow-hidden bg-[#241414]">
       <FilmGrain />
+      <ScanLines />
 
       <div className="pointer-events-none absolute -right-20 -top-20 h-[500px] w-[500px] rounded-full bg-red-700/[0.25] blur-[180px]" />
       <div className="pointer-events-none absolute -bottom-32 left-1/4 h-[400px] w-[400px] rounded-full bg-red-600/[0.18] blur-[150px]" />
+      <div className="pointer-events-none absolute -bottom-32 -right-16 h-[360px] w-[360px] rounded-full bg-red-800/[0.12] blur-[130px]" />
 
       <div
         className="pointer-events-none absolute inset-0 z-20"
-        style={{ background: "radial-gradient(ellipse at center, transparent 50%, rgba(28,14,14,0.25) 100%)" }}
+        style={{ background: "radial-gradient(ellipse at center, transparent 44%, rgba(28,14,14,0.28) 100%)" }}
       />
 
-      <div className="absolute inset-0 z-10 flex items-center justify-center">
+      <div className="absolute inset-x-0 bottom-14 top-0 z-10 flex items-center justify-center px-4">
         {media.loading ? (
           <p className="text-sm text-red-900/50">Loading...</p>
         ) : (
           <div className="relative">
-            <div className="absolute -inset-4 rounded-sm border border-red-900/10" />
+            <div className="absolute -inset-5 rounded border border-red-900/15 shadow-[inset_0_0_0_1px_rgba(255,140,140,0.06),0_0_64px_rgba(78,26,26,0.3)]" />
             <MediaRenderer
               item={media.currentItem}
+              overlayQuote={media.concurrentQuote}
               onNext={media.goNext}
-              imgClassName="max-h-[72vh] max-w-[60vw] object-contain brightness-[0.92] contrast-[1.05]"
-              videoClassName="max-h-[72vh] max-w-[60vw] object-contain brightness-[0.92] contrast-[1.05]"
+              imgClassName="max-h-[86vh] max-w-[78vw] object-contain brightness-[0.92] contrast-[1.05]"
+              videoClassName="max-h-[86vh] max-w-[78vw] object-contain brightness-[0.92] contrast-[1.05]"
               emptyClassName="text-red-900/40"
               emptyText="No media loaded"
-              quoteClassName="text-red-300/60"
+              quoteClassName="max-w-[72vw] text-red-300/70 md:text-2xl"
             />
           </div>
         )}
       </div>
 
-      <div className="absolute bottom-5 left-1/2 z-30 flex -translate-x-1/2 items-center gap-4 rounded border border-red-900/20 bg-[#241414]/70 px-5 py-2 backdrop-blur-sm">
-        <button onClick={media.goPrev} className="text-xs text-red-800/60 transition-colors hover:text-red-400">
+      <div className="absolute bottom-5 left-1/2 z-30 flex -translate-x-1/2 items-center gap-4 rounded border border-red-900/20 bg-[#241414]/72 px-5 py-2 backdrop-blur-sm shadow-[inset_0_1px_0_rgba(255,220,220,0.06),0_10px_32px_rgba(0,0,0,0.4)]">
+        <button
+          onClick={media.goPrev}
+          className="text-xs text-red-800/60 transition-all duration-150 hover:text-red-400 active:scale-95"
+        >
           &#9664; prev
         </button>
         <span className="text-[10px] text-red-950/40">
-          {media.items.length > 0 ? `${(media.currentIndex ?? 0) + 1} / ${media.items.length}` : ""}
+          {media.playbackItems.length > 0
+            ? `${(media.currentIndex ?? 0) + 1} / ${media.playbackItems.length}`
+            : ""}
         </span>
-        <button onClick={media.goNext} className="text-xs text-red-800/60 transition-colors hover:text-red-400">
+        <button
+          onClick={media.goNext}
+          className="text-xs text-red-800/60 transition-all duration-150 hover:text-red-400 active:scale-95"
+        >
           next &#9654;
         </button>
       </div>
 
-      <aside className="absolute bottom-14 right-5 top-14 z-30 flex w-64 flex-col rounded border border-red-900/15 bg-[#241414]/80 backdrop-blur-md">
+      <aside className="absolute bottom-14 right-5 top-14 z-30 flex w-60 flex-col rounded border border-red-900/15 bg-[#241414]/80 backdrop-blur-md shadow-[inset_0_1px_0_rgba(255,220,220,0.06),0_16px_36px_rgba(0,0,0,0.42)]">
         <div className="flex items-center justify-between border-b border-red-950/30 px-4 py-3">
           <h2 className="text-[10px] font-medium uppercase tracking-[0.25em] text-red-700/50">Checklist</h2>
           <Link href="/settings" className="text-[10px] text-red-900/40 hover:text-red-600">settings</Link>

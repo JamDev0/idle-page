@@ -10,6 +10,7 @@ import {
 import type { Settings } from "@/types/settings";
 import type { RotationMode } from "@/types/settings";
 import type { MediaItem } from "@/types/media";
+import type { TodoParseResult } from "@/types/task";
 
 const ROTATION_MODES: { value: RotationMode; label: string }[] = [
   { value: "random", label: "Random" },
@@ -28,12 +29,34 @@ type MediaImportStatus =
   | { state: "ok"; count: number }
   | { state: "error"; message: string };
 
+type TodoPathStatus =
+  | { state: "idle"; message: string }
+  | { state: "loading"; message: string }
+  | { state: "ok"; message: string }
+  | { state: "warning"; message: string }
+  | { state: "error"; message: string };
+
+const TODO_PATH_DEBOUNCE_MS = 550;
+
 function FilmGrain() {
   return (
     <div
       className="pointer-events-none absolute inset-0 z-30 mix-blend-overlay opacity-[0.06]"
       style={{
         backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.2' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`,
+      }}
+    />
+  );
+}
+
+function ScanLines() {
+  return (
+    <div
+      className="pointer-events-none absolute inset-0 z-[25] opacity-[0.03]"
+      style={{
+        backgroundImage:
+          "linear-gradient(to bottom, rgba(255,210,210,0.08) 1px, transparent 1px)",
+        backgroundSize: "100% 4px",
       }}
     />
   );
@@ -55,6 +78,11 @@ export default function SettingsPage() {
   const [quoteText, setQuoteText] = useState("");
   const [quoteSource, setQuoteSource] = useState("");
   const [quoteStatus, setQuoteStatus] = useState<MediaImportStatus>({ state: "idle" });
+  const [todoPathStatus, setTodoPathStatus] = useState<TodoPathStatus>({
+    state: "idle",
+    message: "Absolute path to your markdown checklist file.",
+  });
+  const todoPathValidationRef = useRef<AbortController | null>(null);
 
   const fetchMedia = useCallback(async () => {
     setMediaLoading(true);
@@ -75,11 +103,102 @@ export default function SettingsPage() {
     return () => window.removeEventListener(MEDIA_REGISTRY_CHANGED_EVENT, handleRegistryChange);
   }, [fetchMedia]);
 
+  const validateTodoPath = useCallback(async (rawPath: string) => {
+    const path = rawPath.trim();
+    if (!path) {
+      setTodoPathStatus({
+        state: "idle",
+        message: "Absolute path to your markdown checklist file.",
+      });
+      return;
+    }
+
+    if (todoPathValidationRef.current) {
+      todoPathValidationRef.current.abort();
+    }
+
+    const controller = new AbortController();
+    todoPathValidationRef.current = controller;
+    setTodoPathStatus({ state: "loading", message: "Checking TODO file path..." });
+
+    try {
+      const res = await fetch(`/api/todo?filePath=${encodeURIComponent(path)}`, {
+        signal: controller.signal,
+      });
+      const data = (await res.json()) as TodoParseResult | { error?: string };
+      if (!res.ok) {
+        setTodoPathStatus({
+          state: "error",
+          message:
+            "error" in data && typeof data.error === "string"
+              ? data.error
+              : "Path validation failed.",
+        });
+        return;
+      }
+
+      const result = data as TodoParseResult;
+      if (result.fileHealth === "ok") {
+        setTodoPathStatus({
+          state: "ok",
+          message: `File ready. ${result.tasks.length} task${result.tasks.length === 1 ? "" : "s"} detected.`,
+        });
+        return;
+      }
+
+      if (result.fileHealth === "missing") {
+        setTodoPathStatus({
+          state: "warning",
+          message: "File not found yet. Create it or choose a different path.",
+        });
+        return;
+      }
+
+      if (result.fileHealth === "parse_error") {
+        setTodoPathStatus({
+          state: "warning",
+          message: result.parseWarnings[0] ?? "File has parse warnings and may become read-only.",
+        });
+        return;
+      }
+
+      setTodoPathStatus({
+        state: "warning",
+        message: "File is unreadable. Check permissions or path mapping.",
+      });
+    } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") {
+        return;
+      }
+      setTodoPathStatus({
+        state: "error",
+        message: "Could not validate the path right now.",
+      });
+    }
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (todoPathValidationRef.current) {
+        todoPathValidationRef.current.abort();
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      void validateTodoPath(settings.todoFilePath);
+    }, TODO_PATH_DEBOUNCE_MS);
+
+    return () => clearTimeout(timeout);
+  }, [settings.todoFilePath, validateTodoPath]);
+
   const handleSave = useCallback(() => {
     saveSettings(settings);
+    void validateTodoPath(settings.todoFilePath);
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
-  }, [settings]);
+  }, [settings, validateTodoPath]);
 
   const handleCheckpoint = useCallback(async () => {
     const path = settings.todoFilePath?.trim();
@@ -256,19 +375,39 @@ export default function SettingsPage() {
     setTimeout(() => setQuoteStatus({ state: "idle" }), 4000);
   }, [quoteText, quoteSource]);
 
+  const todoPathInputStateClass =
+    todoPathStatus.state === "ok"
+      ? "border-emerald-700/60 focus:border-emerald-500/60"
+      : todoPathStatus.state === "warning"
+        ? "border-amber-700/60 focus:border-amber-500/60"
+        : todoPathStatus.state === "error"
+          ? "border-red-600/70 focus:border-red-500/70"
+          : "border-red-900/30 focus:border-red-700/40";
+
+  const todoPathMessageClass =
+    todoPathStatus.state === "ok"
+      ? "text-emerald-400/70"
+      : todoPathStatus.state === "warning"
+        ? "text-amber-400/70"
+        : todoPathStatus.state === "error"
+          ? "text-red-400/80"
+          : "text-red-900/50";
+
   return (
-    <main className="relative min-h-screen p-6">
+    <main className="relative min-h-screen overflow-x-hidden p-6">
       <FilmGrain />
+      <ScanLines />
 
       <div className="pointer-events-none absolute -right-20 -top-20 h-[500px] w-[500px] rounded-full bg-red-700/[0.25] blur-[180px]" />
       <div className="pointer-events-none absolute -bottom-32 left-1/4 h-[400px] w-[400px] rounded-full bg-red-600/[0.18] blur-[150px]" />
+      <div className="pointer-events-none absolute -bottom-36 -right-16 h-[340px] w-[340px] rounded-full bg-red-800/[0.12] blur-[130px]" />
 
       <div
         className="pointer-events-none absolute inset-0 z-20"
-        style={{ background: "radial-gradient(ellipse at center, transparent 50%, rgba(28,14,14,0.35) 100%)" }}
+        style={{ background: "radial-gradient(ellipse at center, transparent 46%, rgba(28,14,14,0.35) 100%)" }}
       />
 
-      <div className="relative z-10 mx-auto max-w-lg">
+      <div className="relative z-10 mx-auto max-w-2xl rounded border border-red-900/20 bg-[#241414]/55 p-6 shadow-[inset_0_1px_0_rgba(255,220,220,0.06),0_16px_36px_rgba(0,0,0,0.4)] backdrop-blur-md">
         <h1 className="mb-6 text-xl font-medium text-red-200/90">Settings</h1>
         <div className="space-y-4">
           <div>
@@ -280,12 +419,13 @@ export default function SettingsPage() {
               type="text"
               value={settings.todoFilePath}
               onChange={(e) => setSettings((s) => ({ ...s, todoFilePath: e.target.value }))}
+              onBlur={() => {
+                void validateTodoPath(settings.todoFilePath);
+              }}
               placeholder="/data/TO-DO.md"
-              className="w-full rounded border border-red-900/30 bg-[#241414]/60 px-3 py-2 text-sm text-red-200/70 outline-none placeholder:text-red-950/40 focus:border-red-700/40"
+              className={`w-full rounded border bg-[#241414]/60 px-3 py-2 text-sm text-red-200/70 outline-none placeholder:text-red-950/40 ${todoPathInputStateClass}`}
             />
-            <p className="mt-1 text-xs text-red-900/50">
-              Absolute path to your markdown checklist file.
-            </p>
+            <p className={`mt-1 text-xs ${todoPathMessageClass}`}>{todoPathStatus.message}</p>
           </div>
           <div>
             <label htmlFor="rotationMode" className="mb-1 block text-sm text-red-500/60">
@@ -362,7 +502,7 @@ export default function SettingsPage() {
             <button
               type="button"
               onClick={handleSave}
-              className="rounded bg-red-900/30 px-4 py-2 text-sm text-red-300/80 transition-colors hover:bg-red-800/40"
+              className="rounded bg-red-900/30 px-4 py-2 text-sm text-red-300/80 transition-all duration-150 hover:bg-red-800/40 active:scale-95"
             >
               Save
             </button>
@@ -370,15 +510,18 @@ export default function SettingsPage() {
           </div>
 
           <div className="border-t border-red-950/30 pt-4">
-            <h2 className="mb-2 text-sm font-medium text-red-300/80">Media Library</h2>
+            <h2 className="mb-2 text-sm font-medium text-red-300/80">Media</h2>
             {mediaLoading ? (
               <p className="text-xs text-red-900/50">Loading...</p>
             ) : mediaItems.length === 0 ? (
-              <p className="text-xs text-red-900/50">No media items. Add some below.</p>
+              <p className="text-xs text-red-900/50">No media items yet. Add files or URLs below.</p>
             ) : (
               <ul className="max-h-64 space-y-2 overflow-y-auto">
                 {mediaItems.map((item) => (
-                  <li key={item.id} className="flex items-center gap-2 rounded border border-red-900/20 bg-[#241414]/40 px-3 py-2">
+                  <li
+                    key={item.id}
+                    className="flex items-center gap-2 rounded border border-red-900/20 bg-[#241414]/40 px-3 py-2"
+                  >
                     <span className="shrink-0 rounded bg-red-900/40 px-1.5 py-0.5 text-[10px] uppercase text-red-400">
                       {item.type}
                     </span>
@@ -389,7 +532,7 @@ export default function SettingsPage() {
                       type="button"
                       onClick={() => handleDeleteMedia(item.id)}
                       disabled={deleteId === item.id}
-                      className="shrink-0 rounded px-2 py-1 text-xs text-red-500/60 hover:bg-red-900/30 hover:text-red-400 disabled:opacity-50"
+                      className="shrink-0 rounded px-2 py-1 text-xs text-red-500/60 transition-all duration-150 hover:bg-red-900/30 hover:text-red-400 active:scale-95 disabled:opacity-50"
                     >
                       {deleteId === item.id ? "..." : "Remove"}
                     </button>
@@ -397,13 +540,9 @@ export default function SettingsPage() {
                 ))}
               </ul>
             )}
-          </div>
 
-          <div className="border-t border-red-950/30 pt-4">
-            <h2 className="mb-2 text-sm font-medium text-red-300/80">Add media</h2>
-            <p className="mb-2 text-xs text-red-900/50">
-              Upload files or add a remote URL.
-            </p>
+            <h3 className="mb-2 mt-4 text-xs font-medium uppercase tracking-[0.2em] text-red-700/60">Add media</h3>
+            <p className="mb-2 text-xs text-red-900/50">Upload files or add a remote URL.</p>
             <div className="mb-4 flex flex-wrap items-center gap-2">
               <input
                 ref={fileInputRef}
@@ -416,7 +555,7 @@ export default function SettingsPage() {
                 type="button"
                 onClick={handleUploadFiles}
                 disabled={mediaImportStatus.state === "loading"}
-                className="rounded bg-red-900/30 px-4 py-2 text-sm text-red-300/80 transition-colors hover:bg-red-800/40 disabled:opacity-50"
+                className="rounded bg-red-900/30 px-4 py-2 text-sm text-red-300/80 transition-all duration-150 hover:bg-red-800/40 active:scale-95 disabled:opacity-50"
               >
                 Upload
               </button>
@@ -427,13 +566,13 @@ export default function SettingsPage() {
                 value={remoteUrl}
                 onChange={(e) => setRemoteUrl(e.target.value)}
                 placeholder="https://example.com/image.jpg"
-                className="min-w-[200px] flex-1 rounded border border-red-900/30 bg-[#241414]/60 px-3 py-2 text-sm text-red-200/70 outline-none placeholder:text-red-950/40 focus:border-red-700/40"
+                className="min-w-0 flex-1 rounded border border-red-900/30 bg-[#241414]/60 px-3 py-2 text-sm text-red-200/70 outline-none placeholder:text-red-950/40 focus:border-red-700/40"
               />
               <button
                 type="button"
                 onClick={handleAddByUrl}
                 disabled={mediaImportStatus.state === "loading"}
-                className="rounded bg-red-900/30 px-4 py-2 text-sm text-red-300/80 transition-colors hover:bg-red-800/40 disabled:opacity-50"
+                className="rounded bg-red-900/30 px-4 py-2 text-sm text-red-300/80 transition-all duration-150 hover:bg-red-800/40 active:scale-95 disabled:opacity-50"
               >
                 Add URL
               </button>
@@ -444,7 +583,9 @@ export default function SettingsPage() {
               </p>
             )}
             {mediaImportStatus.state === "error" && (
-              <p className="text-sm text-red-500/80" role="alert">{mediaImportStatus.message}</p>
+              <p className="text-sm text-red-500/80" role="alert">
+                {mediaImportStatus.message}
+              </p>
             )}
           </div>
 
@@ -481,7 +622,7 @@ export default function SettingsPage() {
                 type="button"
                 onClick={handleAddQuote}
                 disabled={quoteStatus.state === "loading"}
-                className="rounded bg-red-900/30 px-4 py-2 text-sm text-red-300/80 transition-colors hover:bg-red-800/40 disabled:opacity-50"
+                className="rounded bg-red-900/30 px-4 py-2 text-sm text-red-300/80 transition-all duration-150 hover:bg-red-800/40 active:scale-95 disabled:opacity-50"
               >
                 {quoteStatus.state === "loading" ? "Adding..." : "Add Quote"}
               </button>
@@ -533,7 +674,7 @@ export default function SettingsPage() {
                 type="button"
                 onClick={handleCheckpoint}
                 disabled={checkpointStatus.state === "loading"}
-                className="rounded bg-red-900/30 px-4 py-2 text-sm text-red-300/80 transition-colors hover:bg-red-800/40 disabled:opacity-50"
+                className="rounded bg-red-900/30 px-4 py-2 text-sm text-red-300/80 transition-all duration-150 hover:bg-red-800/40 active:scale-95 disabled:opacity-50"
               >
                 {checkpointStatus.state === "loading" ? "Checkpointing…" : "Checkpoint"}
               </button>
